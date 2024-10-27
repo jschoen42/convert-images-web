@@ -1,47 +1,21 @@
 # .venv-3.12\Scripts\activate
+# .venv-3.13\Scripts\activate
+#
 # python main.py
 #
 
 import sys
-import re
 from pathlib import Path
-from os import listdir
-from os.path import isfile, join
 import shutil
 
 from PIL import Image
 import pillow_avif
 
 from src.utils.trace import Trace, timeit
+from src.utils.file  import get_files_in_folder, get_save_filename
 
-# increment_filename(filename_stem: str) -> str:
-#
-# 'filaname'     -> 'filaname (1)'
-# 'filaname (1)' -> 'filaname (2)'
-# 'filaname (2)' -> 'filaname (3)'
-# ...
-
-def _increment_filename(filename_stem: str) -> str:
-    pattern = r"^(.*?)(?: \((\d+)\))?$"
-
-    match = re.match(pattern, filename_stem)
-    if match:
-        base_name, number = match.groups()
-        number = int(number) + 1 if number else 1
-
-        new_name = f"{base_name} ({number})"
-        return new_name
-
-    return filename_stem
-
-def get_save_filename( path, stem, suffix ) -> str:
-    files = [f for f in listdir(path) if isfile(join(path, f))]
-
-    name = stem
-    while name + suffix in files:
-        name = _increment_filename( name )
-
-    return name + suffix
+IMPORT_PATH = "./_data/import"
+EXPORT_PATH = "./_data/export"
 
 #
 # convert to 'webp'
@@ -142,16 +116,13 @@ def convert_image( file: str, import_path: Path, export_path: Path, type: str = 
 
 @timeit("all")
 def main():
-    import_path = "./_data/import"
-    export_path = "./_data/export"
-
-    files = [f for f in listdir(import_path) if isfile(join(import_path, f))]
+    files = get_files_in_folder(IMPORT_PATH)
 
     type = "webp"
     # type = "avif"
 
     for file in files:
-        convert_image(file, import_path, export_path, type = type, overwrite = True)
+        convert_image(file, IMPORT_PATH, EXPORT_PATH, type = type, overwrite = True)
 
 
 if __name__ == "__main__":

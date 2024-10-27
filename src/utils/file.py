@@ -18,6 +18,8 @@
     beautify_path( path: Path | str ) -> str
 
     get_trace_path(filepath: str) -> str:
+    get_files_in_folder( path: Path ) -> list:
+    get_save_filename( path, stem, suffix ) -> str:
     export_binary_file(filepath: Path | str, filename: str, data: bytes, _timestamp: int=0, create_folder: bool=False) -> None
     export_file(filepath: Path|str, filename: str, text: str, in_type: str = None, timestamp: int=0, create_folder: bool=False, encoding: str ="utf-8", overwrite: bool=True) -> str
 
@@ -29,6 +31,10 @@
     copy_my_file(source: str, dest: str, _show_updated: bool) -> bool
 
     convert_datetime( time_string: str ) -> int
+
+    PRIVAT:
+    _increment_filename(filename_stem: str) -> str:
+
 """
 
 import shutil
@@ -40,6 +46,7 @@ import hashlib
 import datetime
 import filecmp
 
+from os.path import isfile, join
 from pathlib import Path
 from dateutil.parser import parse
 
@@ -197,6 +204,39 @@ def get_trace_path(filepath: str) -> str:
         trace_path = os.path.normpath(filepath).replace("\\", "/")
 
     return trace_path
+
+
+# increment_filename(filename_stem: str) -> str:
+#
+# 'filaname'     -> 'filaname (1)'
+# 'filaname (1)' -> 'filaname (2)'
+# 'filaname (2)' -> 'filaname (3)'
+# ...
+
+def _increment_filename(filename_stem: str) -> str:
+    pattern = r"^(.*?)(?: \((\d+)\))?$"
+
+    match = re.match(pattern, filename_stem)
+    if match:
+        base_name, number = match.groups()
+        number = int(number) + 1 if number else 1
+
+        new_name = f"{base_name} ({number})"
+        return new_name
+
+    return filename_stem
+
+def get_files_in_folder( path: Path ) -> list:
+    return [f for f in os.listdir(path) if isfile(join(path, f))]
+
+def get_save_filename( path: Path, stem: str, suffix: str ) -> str:
+    files = get_files_in_folder( path )
+
+    name = stem
+    while name + suffix in files:
+        name = _increment_filename( name )
+
+    return name + suffix
 
 def export_binary_file(filepath: Path | str, filename: str, data: bytes, _timestamp: float=0, create_new_folder: bool=False) -> None:
     if create_new_folder:
