@@ -1,4 +1,6 @@
 """
+    (c) Jürgen Schoenemeyer, 10.11.2024
+
     PUBLIC:
     class Prefs:
         init(cls, pref_path = None, pref_prefix = None ) -> None
@@ -8,6 +10,7 @@
     merge_dicts(dict1: dict, dict2: dict) -> dict
     build_tree(tree: list, in_key: str, value: str) -> dict
 """
+import sys
 
 from typing import Any
 from pathlib import Path
@@ -16,18 +19,17 @@ import yaml
 
 from src.utils.trace import Trace
 
-PREF_PATH = Path("./prefs")
-PREF_PREFIX = "" # "pref-"
+BASE_PATH = Path(sys.argv[0]).parent
 
 class Prefs:
-    pref_path   = PREF_PATH
-    pref_prefix = PREF_PREFIX
+    pref_path   = BASE_PATH / "prefs"
+    pref_prefix = ""
     data = {}
 
     @classmethod
     def init(cls, pref_path = None, pref_prefix = None ) -> None:
         if pref_path is not None:
-            cls.pref_path = Path( pref_path )
+            cls.pref_path = BASE_PATH / pref_path
         if pref_prefix is not None:
             cls.pref_prefix = pref_prefix
         cls.data = {}
@@ -81,7 +83,7 @@ class Prefs:
 
 # https://stackoverflow.com/questions/7204805/how-to-merge-dictionaries-of-dictionaries
 
-def merge_dicts(dict1: dict, dict2: dict) -> dict:
+def merge_dicts(dict1: dict, dict2: dict) -> any:
     for k in set(dict1.keys()).union(dict2.keys()):
         if k in dict1 and k in dict2:
             if isinstance(dict1[k], dict) and isinstance(dict2[k], dict):
