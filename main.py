@@ -1,8 +1,6 @@
-# .venv-3.12\Scripts\activate
-# .venv-3.13\Scripts\activate
-#
+# .venv\Scripts\activate
 # python main.py
-#
+
 
 import sys
 from pathlib import Path
@@ -11,7 +9,7 @@ import shutil
 from PIL import Image
 import pillow_avif
 
-from src.utils.trace import Trace, timeit
+from src.utils.trace import Trace, duration
 from src.utils.file  import get_files_in_folder, get_save_filename
 
 IMPORT_PATH = "./_data/import"
@@ -54,7 +52,7 @@ def has_transparency(img):
 
     return False
 
-# @timeit("webp")
+# @duration("webp")
 def convert_image( file: str, import_path: Path, export_path: Path, type: str = "webp", overwrite: bool = False):
 
     export_path = export_path + "-" + type
@@ -114,7 +112,7 @@ def convert_image( file: str, import_path: Path, export_path: Path, type: str = 
             return True
 
 
-@timeit("all")
+@duration("all")
 def main():
     files = get_files_in_folder(IMPORT_PATH)
 

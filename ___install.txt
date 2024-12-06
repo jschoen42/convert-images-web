@@ -64,6 +64,7 @@ uv remove pip-licenses
 
 ------------------ helper: uv -------------------
 
+uv add -U ...
 uv sync
 
 uv run

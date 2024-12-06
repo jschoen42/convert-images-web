@@ -1,15 +1,15 @@
 """
-    (c) Jürgen Schoenemeyer, 29.11.2024
+    (c) Jürgen Schoenemeyer, 06.12.2024
 
     PUBLIC:
     remove_colors(text: str) -> str:
 
-    @timeit(pre_text: str = "", rounds: int = 1)
+    @duration(pre_text: str = "", rounds: int = 1)
 
-    @timeit("argon2 (20 rounds)", 20) # test with 20 rounds => average duration for a round
+    @duration("argon2 (20 rounds)", 20) # test with 20 rounds => average duration for a round
 
-    @timeit("ttx => font '{0}'")      # 0 -> args
-    @timeit("ttx => font '{type}'")   # type -> kwargs
+    @duration("ttx => font '{0}'")      # 0    -> args
+    @duration("ttx => font '{type}'")   # type -> kwargs
 
     class Trace:
 
@@ -18,6 +18,8 @@
 
         Trace.file_init(["action", "result", "warning", "error"], csv=False) # csv with TAB instead of comma
         Trace.file_save("./logs", "testTrace")
+
+        Trace.redirect(function) # -> e.g. qDebug (PySide6)
 
         Trace.action()
         Trace.result()
@@ -46,6 +48,7 @@ import re
 import inspect
 import time
 
+from typing import Callable
 from enum import StrEnum
 from pathlib import Path
 from datetime import datetime
@@ -97,39 +100,6 @@ class Color(StrEnum):
 def remove_colors(text: str) -> str:
     return re.sub(r"\033\[[0-9;]*m", "", text)
 
-
-# decorator for time measure
-
-def timeit(pre_text: str = "", rounds: int = 1):
-    def decorator(func):
-        def wrapper(*args, **kwargs):
-            start_time = time.perf_counter()
-
-            result = func(*args, **kwargs)
-
-            end_time = time.perf_counter()
-            total_time = (end_time - start_time) / rounds
-
-            def replace_args(match):
-                word = match.group(1)
-                if word.isnumeric():
-                    return str(args[int(word)]) # {1} -> args[1]
-                else:
-                    return kwargs.get(word)     # {type} -> kwargs["type"]
-
-            pattern = r"\{(.*?)\}"
-            pretext = re.sub(pattern, replace_args, pre_text)
-
-            text = f"{Color.GREEN}{Color.BOLD}{total_time:.3f} sec{Color.RESET}"
-            if pretext == "":
-                Trace.time(f"{text}")
-            else:
-                Trace.time(f"{pretext}: {text}")
-
-            return result
-        return wrapper
-    return decorator
-
 pattern = {
     "clear":     "     ", # only internal
 
@@ -173,6 +143,7 @@ class Trace:
     pattern:list[str]  = []
     messages:list[str] = []
     csv = False
+    output = None
 
     @classmethod
     def set(cls, **kwargs) -> None:
@@ -181,6 +152,10 @@ class Trace:
                 cls.settings[key] = value
             else:
                 print(f"trace settings: unknown parameter {key}")
+
+    @classmethod
+    def redirect(cls, output: Callable) -> None:
+        cls.output = output
 
     @classmethod
     def file_init(cls, pattern_list: None | list = None, csv: bool = False) -> None:
@@ -310,37 +285,11 @@ class Trace:
             except KeyboardInterrupt:
                 sys.exit()
 
+
     @classmethod
-    def __show_message(cls, file_output: bool, pre: str, message: str, *optional: any) -> None:
-        extra = ""
-        for opt in optional:
-            extra += " > " + str(opt)
-
-        text = f"{pre}{message}{extra}"
-        text_no_tabs = text.replace("\t", " ")
-
-        if file_output:
-            if cls.csv:
-                cls.messages.append(remove_colors(text))
-            else:
-                cls.messages.append(remove_colors(text_no_tabs))
-
-        # https://docs.python.org/3/library/io.html#io.IOBase.isatty
-
-        def is_redirected(stream):
-            return not hasattr(stream, "isatty") or not stream.isatty()
-
-        if not cls.settings["color"] or is_redirected(sys.stdout):
-            text_no_tabs = remove_colors(text_no_tabs)
-
-        # https://docs.python.org/3/library/sys.html#sys.displayhook
-
-        bytes = (text_no_tabs + "\n").encode("utf-8", "backslashreplace")
-        if hasattr(sys.stdout, "buffer"):
-            sys.stdout.buffer.write(bytes)
-        else:
-            text = bytes.decode("utf-8", "strict")
-            sys.stdout.write(text)
+    def __check_file_output(cls) -> bool:
+        trace_type = inspect.currentframe().f_back.f_code.co_name
+        return trace_type in list(cls.pattern)
 
     @classmethod
     def __get_time(cls) -> str:
@@ -357,6 +306,14 @@ class Trace:
                 return f"{Color.BLACK}{curr_time}{Color.RESET}\t"
 
         return ""
+
+    @staticmethod
+    def __get_pattern() -> str:
+        trace_type = inspect.currentframe().f_back.f_code.co_name
+        if trace_type in pattern:
+            return pattern[trace_type]
+        else:
+            return pattern["clear"]
 
     @classmethod
     def __get_caller(cls) -> str:
@@ -384,17 +341,72 @@ class Trace:
         return f"\t{Color.BLUE}[{text}]{Color.RESET}\t"
 
     @classmethod
-    def __check_file_output(cls) -> bool:
-        trace_type = inspect.currentframe().f_back.f_code.co_name
-        return trace_type in list(cls.pattern)
+    def __show_message(cls, file_output: bool, pre: str, message: str, *optional: any) -> None:
+        extra = ""
+        for opt in optional:
+            extra += " > " + str(opt)
 
-    @staticmethod
-    def __get_pattern() -> str:
-        trace_type = inspect.currentframe().f_back.f_code.co_name
-        if trace_type in pattern:
-            return pattern[trace_type]
+        text = f"{pre}{message}{extra}"
+        text_no_tabs = text.replace("\t", " ")
+
+        if cls.output is not None:
+            cls.output(text_no_tabs)
+            return
+
+        if file_output:
+            if cls.csv:
+                cls.messages.append(remove_colors(text))
+            else:
+                cls.messages.append(remove_colors(text_no_tabs))
+
+        # https://docs.python.org/3/library/io.html#io.IOBase.isatty
+
+        def is_redirected(stream):
+            return not hasattr(stream, "isatty") or not stream.isatty()
+
+        if not cls.settings["color"] or is_redirected(sys.stdout):
+            text_no_tabs = remove_colors(text_no_tabs)
+
+        # https://docs.python.org/3/library/sys.html#sys.displayhook
+
+        bytes = (text_no_tabs + "\n").encode("utf-8", "backslashreplace")
+        if hasattr(sys.stdout, "buffer"):
+            sys.stdout.buffer.write(bytes)
         else:
-            return pattern["clear"]
+            text = bytes.decode("utf-8", "strict")
+            sys.stdout.write(text)
+
+# decorator for time measure
+
+def duration(pre_text: str = "", rounds: int = 1):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            start_time = time.perf_counter()
+
+            result = func(*args, **kwargs)
+
+            end_time = time.perf_counter()
+            total_time = (end_time - start_time) / rounds
+
+            def replace_args(match):
+                word = match.group(1)
+                if word.isnumeric():
+                    return str(args[int(word)]) # {1} -> args[1]
+                else:
+                    return kwargs.get(word)     # {type} -> kwargs["type"]
+
+            pattern = r"\{(.*?)\}"
+            pretext = re.sub(pattern, replace_args, pre_text)
+
+            text = f"{Color.GREEN}{Color.BOLD}{total_time:.3f} sec{Color.RESET}"
+            if pretext == "":
+                Trace.time(f"{text}")
+            else:
+                Trace.time(f"{pretext}: {text}")
+
+            return result
+        return wrapper
+    return decorator
 
 #######################
 

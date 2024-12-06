@@ -1,23 +1,26 @@
 """
-    (c) Jürgen Schoenemeyer, 10.11.2024
+    (c) Jürgen Schoenemeyer, 04.12.2024
 
     PUBLIC:
     class Prefs:
         init(cls, pref_path = None, pref_prefix = None ) -> None
         read(cls, pref_name: str) -> bool
-        get(cls, key_path: str, default: Any = None) -> Any
+        get(cls, key_path: str) -> any
 
     merge_dicts(dict1: dict, dict2: dict) -> dict
     build_tree(tree: list, in_key: str, value: str) -> dict
 """
 import sys
+import json
+import re
 
-from typing import Any
+from json    import JSONDecodeError
 from pathlib import Path
 
 import yaml
 
 from src.utils.trace import Trace
+from src.utils.file  import beautify_path
 
 BASE_PATH = Path(sys.argv[0]).parent
 
@@ -65,21 +68,73 @@ class Prefs:
         return cls.data
 
     @classmethod
-    def get(cls, key_path: str, default: Any = None) -> Any:
-        keys = key_path.split(".")
+    def get(cls, key: str) -> any:
 
-        data = cls.data
-        for key in keys:
-            if key in data:
-                data = data[key]
-            else:
-                if default is None:
-                    Trace.fatal(f"unknown key '{key_path}'")
+        def get_pref_key(key_path: str) -> any:
+            keys = key_path.split(".")
+
+            data = cls.data
+            for key in keys:
+                if key in data:
+                    data = data[key]
                 else:
-                    Trace.error(f"unknown key '{key_path}' -> default value '{default}'")
-                    return default
+                    Trace.fatal(f"unknown pref: {key}")
+            return data
 
-        return data
+        result = get_pref_key(key)
+
+        # pref.yaml
+        #   filename:  'data.xlsx'
+        #   filepaths: ['..\result\{{filename}}']
+        #
+        # -> filepaths = ['..\result\data.xlsx']
+
+        # dict -> text -> replace -> dict
+
+        tmp = json.dumps(result)
+
+        pattern = r"\{\{([^\}]+)\}\}" # '{{ ... }}'
+        replace = re.findall(pattern, tmp)
+        if len(replace)==0:
+            return result
+
+        for entry in replace:
+            tmp = tmp.replace("{{" + entry + "}}", get_pref_key(entry))
+
+        try:
+            ret = json.loads(tmp)
+        except JSONDecodeError as err:
+            Trace.error(f"json error: {key} -> {tmp} ({err})")
+            ret = ""
+
+        return ret
+
+
+def get_pref_special(pref_path: Path, pref_prexix, pref_name: str, key: str) -> str:
+    try:
+        with open(Path(pref_path, pref_prexix + pref_name + ".yaml"), "r", encoding="utf-8") as file:
+            pref = yaml.safe_load(file)
+    except OSError as err:
+        Trace.error(f"{beautify_path(err)}")
+        return ""
+
+    if key in pref:
+        return pref[key]
+    else:
+        Trace.error(f"unknown pref: {pref_name} / {key}")
+        return ""
+
+def read_pref( pref_path: Path, pref_name: str ) -> tuple[bool, dict]:
+    try:
+        with open( Path(pref_path, pref_name), "r", encoding="utf-8") as file:
+            data = yaml.safe_load(file)
+
+        # Trace.wait( f"{pref_name}: {json.dumps(data, sort_keys=True, indent=2)}" )
+        return False, data
+
+    except OSError as err:
+        Trace.error( f"{beautify_path(err)}" )
+        return True, {}
 
 # https://stackoverflow.com/questions/7204805/how-to-merge-dictionaries-of-dictionaries
 
