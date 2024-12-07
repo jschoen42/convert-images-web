@@ -1,5 +1,5 @@
 """
-    (c) Jürgen Schoenemeyer, 06.12.2024
+    (c) Jürgen Schoenemeyer, 07.12.2024
 
     PUBLIC:
     remove_colors(text: str) -> str:
@@ -12,10 +12,13 @@
     @duration("ttx => font '{type}'")   # type -> kwargs
 
     class Trace:
-
-        Trace.set(appl_folder="/trace/", debug_mode=False, reduced_mode=False, show_timestamp=True, time_zone="")
+        Trace.set(debug_mode=True)
+        Trace.set(reduced_mode=True)
         Trace.set(color=False)
+        Trace.set(timezone=False)
+        Trace.set(timezone="Europe/Berlin") # "UTC", "America/New_York"
 
+        Trace.set( appl_folder="/trace/" )
         Trace.file_init(["action", "result", "warning", "error"], csv=False) # csv with TAB instead of comma
         Trace.file_save("./logs", "testTrace")
 
@@ -47,6 +50,7 @@ import os
 import re
 import inspect
 import time
+import importlib.util
 
 from typing import Callable
 from enum import StrEnum
@@ -64,9 +68,6 @@ else:
     import tty
     import termios
 
-# force tomezone available, if "tzdata" is installed
-# DEFAULT_TIMEZONE = "UTC"
-DEFAULT_TIMEZONE = "Europe/Berlin"
 
 # https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
 
@@ -137,7 +138,7 @@ class Trace:
 
         "show_timestamp": True,
         "show_caller":    True,
-        "time_zone":      DEFAULT_TIMEZONE,
+        "timezone":       True,
     }
 
     pattern:list[str]  = []
@@ -150,6 +151,24 @@ class Trace:
         for key, value in kwargs.items():
             if key in cls.settings:
                 cls.settings[key] = value
+
+                if key == "timezone" and isinstance(value, str):
+
+                    # tzdata installed ?
+
+                    if importlib.util.find_spec("tzdata") is None:
+                        print( f"{pattern["warning"]} install 'tzdata' for named timezones")
+                        cls.settings[key] = True
+                    else:
+
+                        # timezone valid ?
+
+                        try:
+                            _ = ZoneInfo(value)
+                        except ZoneInfoNotFoundError:
+                            print( f"{pattern['error']} tzdata '{value}' unknown timezone")
+                            cls.settings[key] = True
+
             else:
                 print(f"trace settings: unknown parameter {key}")
 
@@ -174,11 +193,7 @@ class Trace:
         for message in Trace.messages:
             text += message + "\n"
 
-        try:
-            timezone = ZoneInfo(cls.settings["time_zone"])
-            curr_time = datetime.now().astimezone(timezone).strftime("%Y.%d.%m • %H-%M-%S")
-        except ZoneInfoNotFoundError:
-            curr_time = datetime.now().strftime("%Y.%d.%m • %H-%M-%S") # "tzdata" not installed
+        curr_time = cls.__get_time_timezone(cls.settings["timezone"]).replace(":", "-")
 
         try:
             if not trace_path.is_dir():
@@ -292,18 +307,31 @@ class Trace:
         return trace_type in list(cls.pattern)
 
     @classmethod
-    def __get_time(cls) -> str:
-        if cls.settings["show_timestamp"]:
+    def __get_time_timezone(cls, tz: bool | str) -> str:
+        if tz is False:
+            return datetime.now().strftime("%H:%M:%S.%f")[:-3]
+
+        elif tz is True:
+            tz = datetime.now().astimezone()
+            return tz.strftime("%H:%M:%S.%f")[:-3] + tz.strftime("%z")
+
+        else:
             try:
-                timezone = ZoneInfo(cls.settings["time_zone"])
-                curr_time = datetime.now().astimezone(timezone).strftime("%H:%M:%S.%f")[:-3]
-                return f"{Color.BLUE}{curr_time}{Color.RESET}\t"
+                timezone = ZoneInfo(tz)
+                tz = datetime.now().astimezone(timezone)
+                return tz.strftime("%H:%M:%S.%f")[:-3] + tz.strftime("%z")
 
             # "tzdata" not installed
 
             except ZoneInfoNotFoundError:
-                curr_time = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-                return f"{Color.BLACK}{curr_time}{Color.RESET}\t"
+                tz = datetime.now().astimezone()
+                return tz.strftime("%H:%M:%S.%f")[:-3] + tz.strftime("%z")
+
+    @classmethod
+    def __get_time(cls) -> str:
+        if cls.settings["show_timestamp"]:
+            curr_time = cls.__get_time_timezone(cls.settings["timezone"])
+            return f"{Color.BLUE}{curr_time}{Color.RESET}\t"
 
         return ""
 
@@ -372,6 +400,7 @@ class Trace:
         bytes = (text_no_tabs + "\n").encode("utf-8", "backslashreplace")
         if hasattr(sys.stdout, "buffer"):
             sys.stdout.buffer.write(bytes)
+            sys.stdout.flush()
         else:
             text = bytes.decode("utf-8", "strict")
             sys.stdout.write(text)

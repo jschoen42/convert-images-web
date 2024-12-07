@@ -1,5 +1,5 @@
 """
-    (c) Jürgen Schoenemeyer, 04.12.2024
+    (c) Jürgen Schoenemeyer, 07.12.2024
 
     PUBLIC:
     class Prefs:
@@ -7,7 +7,7 @@
         read(cls, pref_name: str) -> bool
         get(cls, key_path: str) -> any
 
-    merge_dicts(dict1: dict, dict2: dict) -> dict
+    merge_dicts(a: dict, b: dict) -> dict
     build_tree(tree: list, in_key: str, value: str) -> dict
 """
 import sys
@@ -53,6 +53,7 @@ class Prefs:
                 data = yaml.safe_load(file)
 
             cls.data = dict(merge_dicts(cls.data, data))
+            # cls.data = merge(dict(cls.data), data) # -> Exception: Conflict at trainingCompany
 
         except yaml.scanner.ScannerError as err:
             Trace.fatal(f"{pref_name}:\n{err}")
@@ -136,22 +137,35 @@ def read_pref( pref_path: Path, pref_name: str ) -> tuple[bool, dict]:
         Trace.error( f"{beautify_path(err)}" )
         return True, {}
 
-# https://stackoverflow.com/questions/7204805/how-to-merge-dictionaries-of-dictionaries
+# https://stackoverflow.com/questions/7204805/deep-merge-dictionaries-of-dictionaries-in-python?page=1&tab=scoredesc#answer-7205672
 
-def merge_dicts(dict1: dict, dict2: dict) -> any:
-    for k in set(dict1.keys()).union(dict2.keys()):
-        if k in dict1 and k in dict2:
-            if isinstance(dict1[k], dict) and isinstance(dict2[k], dict):
-                yield (k, dict(merge_dicts(dict1[k], dict2[k])))
+def merge_dicts(a: dict, b: dict) -> any:
+    for k in set(a.keys()).union(b.keys()):
+        if k in a and k in b:
+            if isinstance(a[k], dict) and isinstance(b[k], dict):
+                yield (k, dict(merge_dicts(a[k], b[k])))
             else:
                 # If one of the values is not a dict, you can't continue merging it.
                 # Value from second dict overrides one in first and we move on.
-                yield (k, dict2[k])
+                yield (k, b[k])
                 # Alternatively, replace this with exception raiser to alert you of value conflicts
-        elif k in dict1:
-            yield (k, dict1[k])
+        elif k in a:
+            yield (k, a[k])
         else:
-            yield (k, dict2[k])
+            yield (k, b[k])
+
+# https://stackoverflow.com/questions/7204805/deep-merge-dictionaries-of-dictionaries-in-python?page=1&tab=scoredesc#answer-7205107
+
+def merge(a: dict, b: dict, path=[]) -> any:
+    for key in b:
+        if key in a:
+            if isinstance(a[key], dict) and isinstance(b[key], dict):
+                merge(a[key], b[key], path + [str(key)])
+            elif a[key] != b[key]:
+                raise Exception("Conflict at " + ".".join(path + [str(key)]))
+        else:
+            a[key] = b[key]
+    return a
 
 def build_tree(tree: list, in_key: str, value: str) -> dict:
     if tree:
