@@ -9,8 +9,9 @@ import shutil
 from PIL import Image
 import pillow_avif
 
-from src.utils.trace import Trace, duration
-from src.utils.file  import get_files_in_folder, get_save_filename
+from src.utils.trace     import Trace
+from src.utils.decorator import duration
+from src.utils.file      import get_files_in_folder, get_save_filename
 
 IMPORT_PATH = "./_data/import"
 EXPORT_PATH = "./_data/export"
