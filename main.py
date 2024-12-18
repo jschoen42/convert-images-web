@@ -9,12 +9,14 @@ import shutil
 from PIL import Image
 import pillow_avif
 
+from src.utils.globals   import BASE_PATH
 from src.utils.trace     import Trace
 from src.utils.decorator import duration
 from src.utils.file      import get_files_in_folder, get_save_filename
 
-IMPORT_PATH = "./_data/import"
-EXPORT_PATH = "./_data/export"
+DATA_PATH = BASE_PATH / "data"
+IMPORT_PATH = DATA_PATH / "import"
+EXPORT_PATH = DATA_PATH / "export"
 
 #
 # convert to 'webp'
