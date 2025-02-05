@@ -1,0 +1,259 @@
+{
+  "scan": {
+    "date": "2025-02-04T16:15:05.322141",
+    "path": "G:/Python/convert-images-web",
+    "files": 23,
+    "ignore": {
+      "folder": [
+        "__pycache__",
+        "_old",
+        ".git",
+        ".venv",
+        ".mypy_cache",
+        ".type-check-result",
+        "data",
+        "fonts",
+        "result",
+        "wav",
+        "examples"
+      ],
+      "files": [
+        ".timestamps.json",
+        "desktop.ini",
+        "folderico-*.ico"
+      ]
+    }
+  },
+  "metadata": {
+    ".gitignore": {
+      "md5": "a573cebb68e832ce9f40224347eb6755",
+      "path": "",
+      "name": ".gitignore",
+      "size": 630,
+      "attr": "A",
+      "modified": "2025-02-04 15:14:21.643261+0100",
+      "created": "2024-11-29 22:03:19.291759+0100",
+      "access": "2025-02-04 16:15:05.298240+0100"
+    },
+    ".python-version": {
+      "md5": "789ee353b44223a8ed8031aa190631dd",
+      "path": "",
+      "name": ".python-version",
+      "size": 5,
+      "attr": "A",
+      "modified": "2024-12-14 20:24:08.237058+0100",
+      "created": "2024-11-29 22:05:35.817231+0100",
+      "access": "2025-02-04 16:15:05.298240+0100"
+    },
+    ".Python313-GitHub": {
+      "md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "path": "",
+      "name": ".Python313-GitHub",
+      "size": 0,
+      "attr": "A",
+      "modified": "2024-11-30 11:04:58.925792+0100",
+      "created": "2024-11-30 11:12:58.694705+0100",
+      "access": "2024-11-30 11:12:58.694705+0100"
+    },
+    ".vscode/launch.json": {
+      "md5": "56e0e9f5b753844c0891c3abb39327ef",
+      "path": ".vscode",
+      "name": "launch.json",
+      "size": 270,
+      "attr": "A",
+      "modified": "2024-11-06 13:19:44.124773+0100",
+      "created": "2024-11-29 22:03:58.917617+0100",
+      "access": "2025-02-04 16:15:05.298240+0100"
+    },
+    ".vscode/settings.json": {
+      "md5": "7f0484790204d8b50ae8dd960aba8865",
+      "path": ".vscode",
+      "name": "settings.json",
+      "size": 2031,
+      "attr": "A",
+      "modified": "2025-01-21 21:19:52.325255+0100",
+      "created": "2024-11-29 22:03:19.291759+0100",
+      "access": "2025-02-04 16:15:05.298240+0100"
+    },
+    "LICENSE": {
+      "md5": "43633bbc230bb0f031171b9d6e7fed00",
+      "path": "",
+      "name": "LICENSE",
+      "size": 1064,
+      "attr": "A",
+      "modified": "2024-12-29 22:06:12.764633+0100",
+      "created": "2024-12-29 22:08:05.388413+0100",
+      "access": "2025-02-04 16:15:05.298240+0100"
+    },
+    "pyproject.toml": {
+      "md5": "acb13050f3a1c3acef90109e2dc96d20",
+      "path": "",
+      "name": "pyproject.toml",
+      "size": 472,
+      "attr": "A",
+      "modified": "2025-02-03 23:33:40.966930+0100",
+      "created": "2024-11-29 22:05:35.478904+0100",
+      "access": "2025-02-04 16:15:05.298240+0100"
+    },
+    "README.md": {
+      "md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "path": "",
+      "name": "README.md",
+      "size": 0,
+      "attr": "A",
+      "modified": "2024-11-29 22:05:35.980973+0100",
+      "created": "2024-11-29 22:05:35.980973+0100",
+      "access": "2024-11-29 22:05:35.980973+0100"
+    },
+    "requirements.txt": {
+      "md5": "94330b4ec393b5ce6fc561d4eb765094",
+      "path": "",
+      "name": "requirements.txt",
+      "size": 52,
+      "attr": "A",
+      "modified": "2024-11-29 22:03:19.309423+0100",
+      "created": "2024-11-29 22:03:19.309423+0100",
+      "access": "2025-02-04 16:15:05.298240+0100"
+    },
+    "ruff.toml": {
+      "md5": "8d90a4d239ad09f87cfdd86afb961fa9",
+      "path": "",
+      "name": "ruff.toml",
+      "size": 71,
+      "attr": "A",
+      "modified": "2024-12-04 21:58:59.993012+0100",
+      "created": "2024-11-29 22:15:35.128587+0100",
+      "access": "2025-02-04 16:15:05.298240+0100"
+    },
+    "src/main.py": {
+      "md5": "23edb012703d1ac7111794244a1e01ab",
+      "path": "src",
+      "name": "main.py",
+      "size": 3888,
+      "attr": "A",
+      "modified": "2025-01-01 14:41:02.925018+0100",
+      "created": "2024-11-29 22:03:19.309423+0100",
+      "access": "2025-02-04 16:15:05.298240+0100"
+    },
+    "src/utils/decorator.py": {
+      "md5": "dbc61109d24411febaae143423b6297f",
+      "path": "src/utils",
+      "name": "decorator.py",
+      "size": 10371,
+      "attr": "A",
+      "modified": "2025-01-27 20:02:01.279274+0100",
+      "created": "2024-12-08 18:18:24.952859+0100",
+      "access": "2025-02-04 16:15:05.308757+0100"
+    },
+    "src/utils/file.py": {
+      "md5": "40331e6e76ec21574a1bccf3608551b9",
+      "path": "src/utils",
+      "name": "file.py",
+      "size": 14154,
+      "attr": "A",
+      "modified": "2025-01-29 22:02:54.505297+0100",
+      "created": "2024-11-29 22:03:19.323455+0100",
+      "access": "2025-02-04 16:15:05.308757+0100"
+    },
+    "src/utils/globals.py": {
+      "md5": "751cfa93af496a8c1531a19525514219",
+      "path": "src/utils",
+      "name": "globals.py",
+      "size": 563,
+      "attr": "A",
+      "modified": "2025-01-27 19:37:56.760238+0100",
+      "created": "2024-12-17 14:09:20.121280+0100",
+      "access": "2025-02-04 16:15:05.308757+0100"
+    },
+    "src/utils/trace.py": {
+      "md5": "ce53f99ffe4b1dcf57909bfb844f3f9d",
+      "path": "src/utils",
+      "name": "trace.py",
+      "size": 15973,
+      "attr": "A",
+      "modified": "2025-02-02 23:56:38.453645+0100",
+      "created": "2024-11-29 22:03:19.323455+0100",
+      "access": "2025-02-04 16:15:05.308757+0100"
+    },
+    "src/utils/__init__.py": {
+      "md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "path": "src/utils",
+      "name": "__init__.py",
+      "size": 0,
+      "attr": "AP",
+      "modified": "2025-01-06 12:02:20.892843+0100",
+      "created": "2024-11-29 22:03:19.323455+0100",
+      "access": "2025-01-06 12:02:20.892843+0100"
+    },
+    "src/__init__.py": {
+      "md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "path": "src",
+      "name": "__init__.py",
+      "size": 0,
+      "attr": "A",
+      "modified": "2024-12-09 20:42:31.673863+0100",
+      "created": "2024-11-29 22:03:19.309423+0100",
+      "access": "2024-12-09 20:42:31.673863+0100"
+    },
+    "uv.lock": {
+      "md5": "0d7ce7bd91d13493d367c9c8c5809f77",
+      "path": "",
+      "name": "uv.lock",
+      "size": 13421,
+      "attr": "A",
+      "modified": "2024-12-14 20:24:43.494461+0100",
+      "created": "2024-11-29 22:07:24.962527+0100",
+      "access": "2025-02-04 16:15:05.314953+0100"
+    },
+    "_mypy.py": {
+      "md5": "e4c1a4f59fcb7ae581f7bfa2abf41a69",
+      "path": "",
+      "name": "_mypy.py",
+      "size": 9918,
+      "attr": "A",
+      "modified": "2025-02-04 15:34:57.866627+0100",
+      "created": "2025-01-15 15:47:34.677080+0100",
+      "access": "2025-02-04 16:15:05.316954+0100"
+    },
+    "_pyright.py": {
+      "md5": "156a940701e5127ea812708f842c0b8e",
+      "path": "",
+      "name": "_pyright.py",
+      "size": 4861,
+      "attr": "A",
+      "modified": "2025-02-04 15:55:03.348997+0100",
+      "created": "2025-01-15 15:47:34.678877+0100",
+      "access": "2025-02-04 16:15:05.317954+0100"
+    },
+    "__tree.txt": {
+      "md5": "89d5cae7ea67726fa4d4d459ed6c2d63",
+      "path": "",
+      "name": "__tree.txt",
+      "size": 243,
+      "attr": "A",
+      "modified": "2024-11-29 22:09:50.988250+0100",
+      "created": "2024-11-29 22:09:50.928536+0100",
+      "access": "2025-02-04 16:15:05.319956+0100"
+    },
+    "___cheatsheet.txt": {
+      "md5": "832b236d0c98252bc8cb1c7fa0719214",
+      "path": "",
+      "name": "___cheatsheet.txt",
+      "size": 6321,
+      "attr": "A",
+      "modified": "2025-02-02 14:16:36.278416+0100",
+      "created": "2025-01-02 18:19:29.239177+0100",
+      "access": "2025-02-04 16:15:05.319956+0100"
+    },
+    "___start.txt": {
+      "md5": "e9e4501d1cbc38a5c3f8c3d319bab260",
+      "path": "",
+      "name": "___start.txt",
+      "size": 119,
+      "attr": "A",
+      "modified": "2024-12-20 21:05:38.718082+0100",
+      "created": "2024-12-21 09:56:29.040334+0100",
+      "access": "2025-02-04 16:15:05.320948+0100"
+    }
+  }
+}

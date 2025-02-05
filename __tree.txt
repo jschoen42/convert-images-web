@@ -1,7 +1,7 @@
 convert-images-web v0.1.0
 ├── arrow v1.3.0
 │   ├── python-dateutil v2.9.0.post0
-│   │   └── six v1.16.0
-│   └── types-python-dateutil v2.9.0.20241003
-├── pillow v11.0.0
+│   │   └── six v1.17.0
+│   └── types-python-dateutil v2.9.0.20241206
+├── pillow v11.1.0
 └── pillow-avif-plugin v1.4.6
