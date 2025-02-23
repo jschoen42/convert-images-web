@@ -1,13 +1,12 @@
 """
     © Jürgen Schoenemeyer, 23.02.2025
 
-    _pyright.py
+    _basedpyright.py
 
     INSTALL:
-     - npm install --global pyright
-     - npm update --global pyright
+     - uv add basedpyright --dev
 
-    INSTALL STUBS - https://github.com/python/typeshed/tree/main/stubs:
+    INSTALL STUBS - https://github.com/python/typeshed/tree/main/stubs
      - uv add lxml-stubs --dev
      - uv add pandas-stubs --dev
      - uv add types-beautifulsoup4 --dev
@@ -17,9 +16,9 @@
      - uv add types-xmltodict --dev
 
     RUN CLI
-     - uv run _pyright.py .
-     - uv run _pyright.py src
-     - uv run _pyright.py src/main.py
+     - uv run _basedpyright.py .
+     - uv run _basedpyright.py src
+     - uv run _basedpyright.py src/main.py
 
     PUBLIC:
      - run_pyright(src_path: Path, python_version: str) -> None
@@ -54,11 +53,11 @@ def format_singular_plural(value: int, text: str) -> str:
         return f"{value} {text}"
     return f"{value} {text}s"
 
-def run_pyright(src_path: Path, python_version: str) -> None:
+def run_basedpyright(src_path: Path, python_version: str) -> None:
 
     if python_version == "":
         try:
-            with Path.open(Path(".python-version"), mode="r") as f:
+            with Path.open(Path("python-version"), mode="r") as f:
                 python_version = f.read().strip()
         except OSError:
             python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
@@ -99,10 +98,9 @@ def run_pyright(src_path: Path, python_version: str) -> None:
         "reportUnusedCallResult": False,       # always False -> _vars
 
         "exclude": [
-            "**/site-packages",
-            "**/Scripts/activate_this.py",
-            "**/src/faster_whisper/*",
-            "**/src/extras/*",
+            ".venv/*",
+            "src/faster_whisper/*",
+            "src/extras/*",
         ],
     }
 
@@ -120,34 +118,34 @@ def run_pyright(src_path: Path, python_version: str) -> None:
     if name == "":
         name = "."
 
-    npx_path = shutil.which("npx")
-    if not npx_path:
-        print("Error: 'npx' not found")
-        return
-
     text  = f"Python:   {sys.version.replace(LINEFEET, ' ')}\n"
     text += f"Platform: {platform.platform()}\n"
     text += f"Date:     {datetime.now().astimezone().strftime('%d.%m.%Y %H:%M:%S')}\n"
     text += f"Path:     {BASE_PATH}\n"
     text += "\n"
 
-    text += "PyRight [version] settings:\n"
+    text += "BasedPyRight [version] settings:\n"
     for key, value in settings.items():
         text += f" - {key}: {value}\n"
 
     config = Path("tmp.json")
-    with Path.open(config, mode="w") as config_file:
+    with Path.open(config, mode="w", newline="\n") as config_file:
         json.dump(settings, config_file, indent=2)
 
     try:
+        basedpyright_path = shutil.which("basedpyright")
+        if not basedpyright_path:
+            print("Error: 'basedpyright' not installed -> uv add basedpyright --dev")
+            sys.exit(1)
+
         result: CompletedProcess[str] = subprocess.run(
-            [npx_path, "pyright", src_path, "--project", config, "--outputjson"],
+            [basedpyright_path, src_path, "--project", config, "--outputjson"],
             capture_output=True,
             text=True,
             check=False,
         )
     except Exception as err:
-        print(f"error: {err} - pyright")
+        print(f"error: {err} - basedpyright")
         sys.exit(1)
     finally:
         Path.unlink(config)
@@ -197,28 +195,29 @@ def run_pyright(src_path: Path, python_version: str) -> None:
 
     text = text.replace("[version]", version )
 
+    footer: str =  f"files: {summary['filesAnalyzed']}, "
+    footer += f"errors: {summary['errorCount']}, "
+    footer += f"warnings: {summary['warningCount']}, "
+    footer += f"informations: {summary['informationCount']}, "
+    footer += f"duration: {summary['timeInSec']} sec"
+
     n = len(str(Path.cwd().absolute())) + 1
 
     msg_files = 0
     last_file = ""
     error_types: Counter[str] = Counter()
     for diagnostic in diagnostics:
-
         file        = Path(diagnostic["file"]).as_posix()
-        severity    = diagnostic["severity"]
-        if severity == "information":
-            error_type = ""
-        else:
-            error_type = diagnostic["rule"]
-            error_types[error_type] += 1
-
+        error_type  = diagnostic["rule"]
+        error       = diagnostic["severity"]
         range_start = diagnostic["range"]["start"]
 
+        error_types[error_type] += 1
+
         msg = file[n:]
-        msg += f":{range_start['line']+1}:{range_start['character']+1} - {severity}: " # 0-based
+        msg += f":{range_start['line']+1}:{range_start['character']+1} - {error}: " # 0-based
         msg += diagnostic["message"]
-        if error_type != "":
-            msg += f" ({error_type})"
+        msg += f" ({error_type})"
 
         if last_file != file:
             if last_file != "":
@@ -247,23 +246,23 @@ def run_pyright(src_path: Path, python_version: str) -> None:
 
     text += footer + "\n"
 
-    result_filename = f"PyRight-{python_version}-'{name}'.txt"
+    result_filename = f"BasedPyRight-{python_version}-'{name}'.txt"
     with Path.open(folder_path / result_filename, mode="w", newline="\n") as f:
         f.write(text)
 
     duration = time.time() - start
-    print(f"[PyRight {version} ({duration:.2f} sec)] {footer} -> {RESULT_FOLDER}/{result_filename}")
+    print(f"[BasedPyRight {version} ({duration:.2f} sec)] {footer} -> {RESULT_FOLDER}/{result_filename}")
     sys.exit(result.returncode)
 
 if __name__ == "__main__":
-    parser = ArgumentParser(description="static type check with PyRight")
+    parser = ArgumentParser(description="static type check with BasedPyRight")
     parser.add_argument("path", nargs="?", type=str, default=".", help="relative path to a file or folder")
     parser.add_argument("-v", "--version", type=str, default="",  help="Python version 3.10/3.11/...")
 
     args = parser.parse_args()
 
     try:
-        run_pyright(Path(args.path), args.version)
+        run_basedpyright(Path(args.path), args.version)
     except KeyboardInterrupt:
         print(" --> KeyboardInterrupt")
         sys.exit(1)

@@ -1,19 +1,20 @@
 # .venv/Scripts/activate
 # python src/main.py
 
-import sys
+from __future__ import annotations
 
-from typing import Any
-from pathlib import Path
 import shutil
+import sys
+from pathlib import Path
+from typing import Any
 
-from PIL import Image
 import pillow_avif  # type: ignore[import-untyped] # noqa: F401
+from PIL import Image
 
-from utils.globals   import BASE_PATH
-from utils.trace     import Trace
 from utils.decorator import duration
-from utils.file      import get_files_in_folder, get_save_filename
+from utils.file import get_files_in_folder, get_save_filename
+from utils.globals import BASE_PATH
+from utils.trace import Trace
 
 DATA_PATH = BASE_PATH / "data"
 IMPORT_PATH = DATA_PATH / "import"
@@ -56,13 +57,13 @@ def has_transparency(img: Any) -> bool:
 
     return False
 
-# @duration("convert_image {0} -> {type}")
-def convert_image( file: str, import_path: Path, export_path: Path, type: str = "webp", overwrite: bool = False) -> bool:
+# @duration("convert_image {0} -> {image_type}")
+def convert_image( file: str, import_path: Path, export_path: Path, image_type: str = "webp", overwrite: bool = False) -> bool:
 
     if file in [".gitkeep", "desktop.ini"]:
         return False
 
-    export_path = export_path / type
+    export_path = export_path / image_type
     if not export_path.exists():
         export_path.mkdir(parents=True)
 
@@ -91,26 +92,26 @@ def convert_image( file: str, import_path: Path, export_path: Path, type: str = 
         image = image_file.convert("RGB")
 
     if overwrite:
-        file_name = name + "." + type
+        file_name = name + "." + image_type
     else:
-        file_name = get_save_filename( export_path, name, "." + type)
+        file_name = get_save_filename( export_path, name, "." + image_type)
 
-    if type == "webp":
+    if image_type == "webp":
         if lossless:
-            image.save( Path(export_path, file_name), compression=type, lossless=True, method=4)
+            image.save( Path(export_path, file_name), compression=image_type, lossless=True, method=4)
             Trace.info(f"lossless '{name + suffix}' => '{file_name}'")
         else:
-            image.save( Path(export_path, file_name), compression=type, lossless=False, quality=75, method=5)
+            image.save( Path(export_path, file_name), compression=image_type, lossless=False, quality=75, method=5)
             Trace.warning(f"lossy    '{name + suffix}' => '{file_name}'")
 
         return True
 
-    if type == "avif":
+    if image_type == "avif":
         if lossless:
-            image.save( Path(export_path, file_name), compression=type, lossless=True)
+            image.save( Path(export_path, file_name), compression=image_type, lossless=True)
             Trace.info(f"lossless '{name + suffix}' => '{file_name}'")
         else:
-            image.save( Path(export_path, file_name), compression=type, lossless=False, quality=80)
+            image.save( Path(export_path, file_name), compression=image_type, lossless=False, quality=80)
             Trace.warning(f"lossy    '{name + suffix}' => '{file_name}'")
 
         return True
@@ -119,11 +120,11 @@ def convert_image( file: str, import_path: Path, export_path: Path, type: str = 
 
 
 @duration("{__name__} to '{0}'")
-def convert_all_image( type: str ) -> None:
+def convert_all_image( image_type: str ) -> None:
     files = get_files_in_folder(IMPORT_PATH)
 
     for file in files:
-        convert_image(file, IMPORT_PATH, EXPORT_PATH, type = type, overwrite = True)
+        convert_image(file, IMPORT_PATH, EXPORT_PATH, image_type = image_type, overwrite = True)
 
 if __name__ == "__main__":
     Trace.set( debug_mode=True, timezone=False )

@@ -1,5 +1,5 @@
 """
-    © Jürgen Schoenemeyer, 29.01.2025
+    © Jürgen Schoenemeyer, 22.02.2025
 
     src/utils/file.py
 
@@ -22,17 +22,23 @@
      - delete_folder_tree(dest_path: Path | str, relax: bool = False) -> bool:
      - create_folder( folderpath: Path | str ) -> bool:
      - make_dir(path: Path | str) -> None:
-     - delete_file(path: Path | str, filename: str) -> None:
+     - delete_file(path: Path | str, filename: str) -> bool:
      - beautify_path( path: Path | str ) -> str:
 
      #
      - get_trace_path(filepath: Path | str) -> str:
-     - get_files_in_folder( path: Path ) -> List[str]
-     - get_folders_in_folder( path: Path ) -> List[str]
-     - get_save_filename( path: Path, stem: str, suffix: str ) -> str
+     - get_files_in_folder(path: Path) -> List[str]
+     - get_folders_in_folder(path: Path) -> List[str]
+     - get_save_filename(path: Path, stem: str, suffix: str) -> str
 
+     - import_text(folderpath: Path | str, filename: Path | str, encoding: str="utf-8", show_error: bool=True) -> str | None
+     - import_json(folderpath: Path | str, filename: str, show_error: bool=True) -> Any
+     - import_json_timestamp( folderpath: Path | str, filename: str, show_error: bool=True ) -> Tuple[Any, float | None]
+
+     - export_text(folderpath: Path | str, filename: str, text: str, encoding: str="utf-8", newline: str="\n", timestamp: float=0.0, create_new_folder: bool=True, show_message: bool=True) -> str | None:
+     - export_json(folderpath: Path | str, filename: str, data: Dict[str, Any] | List[Any], newline: str="\n", timestamp: float=0.0, show_message: bool=True) -> str | None:
      - export_binary_file(filepath: Path | str, filename: str, data: bytes, _timestamp: float=0, create_new_folder: bool=False) -> None
-     - export_file(filepath: Path|str, filename: str, text: str, in_type: str | None = None, timestamp: float=0, create_new_folder: bool=True, encoding: str ="utf-8", overwrite: bool=True) -> None | str
+     - export_file(filepath: Path|str, filename: str, text: str, in_type: str | None = None, timestamp: float=0, create_new_folder: bool=True, encoding: str ="utf-8", newline: str="\n", overwrite: bool=True) -> None | str
     #
      - get_filename_unique(dirpath: Path, filename: str) -> str
      - find_matching_file(path_name: str) -> bool | str
@@ -45,26 +51,28 @@
     PRIVATE:
      - _increment_filename(filename_stem: str) -> str
 """
+from __future__ import annotations
 
-import shutil
-import os
-import re
-import glob
-import hashlib
 import datetime
 import filecmp
-
-from typing import Any, Dict, List, Tuple
-from os.path import isfile, isdir, join
+import hashlib
+import json
+import os
+import re
+import shutil
 from pathlib import Path
+from re import Match
+from typing import Any, Dict, List, Tuple
 
 from utils.trace import Trace
 
 # timestamp
 
 def get_modification_timestamp(filename: Path | str) -> float:
+    filename = Path(filename)
+
     try:
-        ret = os.path.getmtime(Path(filename))
+        ret = filename.stat().st_mtime
     except OSError as err:
         Trace.error(f"{err}")
         return 0
@@ -72,15 +80,17 @@ def get_modification_timestamp(filename: Path | str) -> float:
     return ret
 
 def set_modification_timestamp(filename: Path | str, timestamp: float) -> None:
+    filename = Path(filename)
+
     try:
-        os.utime(Path(filename), (timestamp, timestamp)) # atime and mtime
+        os.utime(filename, (timestamp, timestamp)) # atime and mtime
     except OSError as err:
         Trace.error(f"set_modification_timestamp: {err}")
 
 # check
 
 def check_path_exists(path: Path | str) -> bool:
-    return os.path.exists(path)
+    return Path(path).exists()
 
 def check_file_exists(filepath_start: Path | str, filepath_end: Path | str) -> bool:
 
@@ -101,7 +111,7 @@ def check_file_exists(filepath_start: Path | str, filepath_end: Path | str) -> b
         return False
 
     try:
-        filenames = os.listdir(filepath)
+        filenames: list[str] = os.listdir(filepath)
     except OSError as err:
         Trace.error(f"{err}")
         return False
@@ -136,13 +146,13 @@ def listdir_match_extention(path: Path | str, extensions: List[str]) -> Tuple[Li
             Trace.warning(f"skip temp file '{file}'")
             continue
 
-        if os.path.isfile(path / file):
+        if Path.is_file(path / file):
             for extention in extensions:
                 if extention == "*" or file.endswith("." + extention):
                     files.append(file)
                     break
 
-        elif os.path.isdir(path / file):
+        elif Path.is_dir(path / file):
             folders.append(file)
 
         else:
@@ -156,7 +166,7 @@ def list_folders(path: Path | str) -> List[str]:
     folders: List[str] = []
     try:
         for file in os.listdir(path):
-            if os.path.isdir(os.path.join(path, file)):
+            if Path.is_dir(path / file):
                 folders.append(file)
     except OSError as err:
         Trace.error(f"{err}")
@@ -167,14 +177,14 @@ def clear_folder(path: Path | str) -> None:
     path = Path(path)
 
     for filename in os.listdir(path):
-        filepath = os.path.join(path, filename)
+        filepath = path / filename
 
         try:
             shutil.rmtree(filepath)
         except OSError as err:
             error = str(err).split(":")[0]
             try:
-                os.remove(filepath)
+                Path.unlink(filepath)
             except OSError:
                 Trace.fatal( f"shutil.rmtree {error} '{get_trace_path(filepath)}'")
 
@@ -182,7 +192,7 @@ def delete_folder_tree(dest_path: Path | str, relax: bool = False) -> bool:
     dest_path = Path(dest_path)
 
     ret = False
-    if os.path.exists(dest_path):
+    if Path.exists(dest_path):
         try:
             shutil.rmtree(dest_path)
             ret = True
@@ -197,11 +207,11 @@ def delete_folder_tree(dest_path: Path | str, relax: bool = False) -> bool:
     return ret
 
 def create_folder( folderpath: Path | str ) -> bool:
-    folderpath = Path( folderpath )
+    folderpath = Path(folderpath)
 
     if not folderpath.is_dir():
         try:
-            os.makedirs(folderpath)
+            folderpath.mkdir(parents=True)
             Trace.update( f"makedir: {folderpath}")
             return True
         except OSError as error:
@@ -216,15 +226,19 @@ def make_dir(path: Path | str) -> None:
 
     path.mkdir(parents=True, exist_ok=True)
 
-def delete_file(path: Path | str, filename: str) -> None:
+def delete_file(path: Path | str, filename: str) -> bool:
     filepath = Path(path) / filename
 
     if filepath.is_file():
         try:
             filepath.unlink()
             Trace.update(f"file '{filepath}' deleted")
+            return True
+
         except OSError as err:
             Trace.error(f"{err}")
+
+    return False
 
 def beautify_path( path: Path | str ) -> str:
     return str( path ).replace("\\\\", "/")
@@ -237,7 +251,7 @@ def get_trace_path(filepath: Path | str) -> str:
     tmp_path = os.path.normpath(filepath).replace("\\", "/")
 
     if "/_workdir/" in tmp_path:
-        trace_path = "./" + tmp_path.split("/tmp/")[1]
+        trace_path = "./" + tmp_path.split("/tmp/")[1]  # noqa: S108
     else:
         trace_path = tmp_path
 
@@ -245,14 +259,14 @@ def get_trace_path(filepath: Path | str) -> str:
     return trace_path
 
 
-def get_files_in_folder( path: Path ) -> List[str]:
-    return [f for f in os.listdir(path) if isfile(join(path, f))]
+def get_files_in_folder( path: Path | str ) -> List[str]:
+    return [f for f in os.listdir(path) if (Path(path) / f).is_file()]
 
-def get_folders_in_folder( path: Path ) -> List[str]:
-    return [f for f in os.listdir(path) if isdir(join(path, f))]
+def get_folders_in_folder( path: Path | str ) -> List[str]:
+    return [f for f in os.listdir(path) if (Path(path) / f).is_dir()]
 
-def get_save_filename( path: Path, stem: str, suffix: str ) -> str:
-    files = get_files_in_folder( path )
+def get_save_filename( path: Path | str, stem: str, suffix: str ) -> str:
+    files: List[str] = get_files_in_folder( Path(path) )
 
     name = stem
     while name + suffix in files:
@@ -260,27 +274,105 @@ def get_save_filename( path: Path, stem: str, suffix: str ) -> str:
 
     return name + suffix
 
-def export_binary_file(filepath: Path | str, filename: str, data: bytes, _timestamp: float=0, create_new_folder: bool=False) -> None:
+def import_text( folderpath: Path | str, filename: Path | str, encoding: str="utf-8", show_error: bool=True ) -> str | None:
+    filepath = Path(folderpath, filename)
+
+    if filepath.is_file():
+        try:
+            with Path.open(filepath, mode="r", encoding=encoding) as file:
+                data = file.read()
+            return data
+
+        except OSError as error:
+            Trace.error(f"{error}")
+            return None
+
+        except UnicodeDecodeError as error:
+            Trace.error(f"{filepath}: {error}")
+            return None
+
+    else:
+        if show_error:
+            Trace.error(f"file not exist {filepath.resolve()}")
+        return None
+
+def import_json( folderpath: Path | str, filename: str, show_error: bool=True ) -> Any | None:
+    result = import_text(folderpath, filename, show_error=show_error)
+    if result:
+        data = json.loads(result)
+        return data
+    else:
+        return None
+
+def import_json_timestamp( folderpath: Path | str, filename: str, show_error: bool=True ) -> Tuple[Any | None, float]:
+    ret = import_json(folderpath, filename, show_error=show_error)
+    if ret:
+        return ret, get_modification_timestamp(Path(folderpath, filename))
+    else:
+        return None, 0.0
+
+def export_text(folderpath: Path | str, filename: str, text: str, encoding: str="utf-8", newline: str="\n", timestamp: float=0.0, create_new_folder: bool=True, show_message: bool=True) -> str | None:
+    folderpath = Path(folderpath)
+    filepath   = Path(folderpath, filename)
+
+    exist = False
+    try:
+        with Path.open(filepath, mode="r", encoding=encoding) as file:
+            text_old = file.read()
+            exist = True
+    except OSError:
+        text_old = ""
+
+    if exist:
+        if text == text_old:
+            if show_message:
+                Trace.info(f"not changed '{filepath}'")
+            return str(filename)
+
     if create_new_folder:
-        if not os.path.isdir(filepath):
-            os.makedirs(filepath)
+        create_folder(folderpath)
+
+    try:
+        with Path.open(filepath, mode="w", encoding=encoding, newline=newline) as file:
+            file.write(text)
+
+        if timestamp != 0:
+            set_modification_timestamp(filepath, timestamp)
+
+        if show_message:
+            if text_old == "":
+                Trace.update(f"created '{filepath}'")
+            else:
+                Trace.update(f"changed '{filepath}'")
+
+        return str(filename)
+
+    except OSError as error:
+        error_msg = str(error).split(":")[0]
+        Trace.error(f"{error_msg} - {filepath}")
+        return None
+
+def export_json(folderpath: Path | str, filename: str, data: Dict[str, Any] | List[Any], newline: str="\n", timestamp: float=0.0, show_message: bool=True) -> str | None:
+    text = json.dumps(data, ensure_ascii=False, indent=2)
+
+    return export_text(folderpath, filename, text, encoding="utf-8", newline=newline, timestamp=timestamp, show_message=show_message)
+
+def export_binary_file(filepath: Path | str, filename: str, data: bytes, _timestamp: float=0, create_new_folder: bool=False) -> None:
+    filepath = Path(filepath)
+
+    if create_new_folder:
+        if not Path.is_dir(filepath):
+            filepath.mkdir(parents=True)
             Trace.update( f"makedir '{filepath}'")
 
-    with open(Path(filepath, filename), "wb") as binary_file:
+    with Path.open(Path(filepath, filename), mode="wb") as binary_file:
         binary_file.write(data)
 
-def export_file(
-    filepath: Path | str,
-    filename: str,
-    text: str,
-    in_type: str | None = None,
-    timestamp: float=0.0,
-    create_new_folder: bool=True,
-    encoding: str ="utf-8",
-    overwrite: bool=True
-) -> None | str:
-    trace_export_path_folder = get_trace_path(Path(filepath))
-    trace_export_path        = get_trace_path(Path(filepath, filename))
+def export_file(filepath: Path | str, filename: str, text: str, in_type: str | None = None, encoding: str ="utf-8", newline: str="\n",timestamp: float=0.0, create_new_folder: bool=True, overwrite: bool=True) -> None | str:
+    filepath = Path(filepath)
+
+    trace_export_path_folder = get_trace_path(filepath)
+    trace_export_path        = get_trace_path(filepath / filename)
 
     if text == "":
         Trace.error(f"text empty '{trace_export_path}'")
@@ -289,13 +381,13 @@ def export_file(
     if overwrite:
         my_filename = filename
     else:
-        tmp = filename.split(".")
+        tmp: list[str] = filename.split(".")
         ext = tmp.pop()
         dest2 = ".".join(tmp)
         copy = ""
 
         c = 0
-        while Path(filepath, (dest2 + copy + "." + ext)).is_file():
+        while (filepath / (dest2 + copy + "." + ext)).is_file():
             if c == 0:
                 c = 2
             else:
@@ -305,7 +397,7 @@ def export_file(
         my_filename = dest2 + copy + "." + ext
 
     try:
-        with open(Path(filepath, my_filename), "r", encoding=encoding) as file:
+        with Path.open(filepath / my_filename, mode="r", encoding=encoding) as file:
             ref_text = file.read()
     except OSError:
         ref_text = ""
@@ -322,9 +414,9 @@ def export_file(
 
     else:
         if create_new_folder:
-            if not os.path.isdir(filepath):
+            if not filepath.is_dir():
                 try:
-                    os.makedirs(filepath)
+                    filepath.mkdir(parents=True)
                     Trace.update( f"makedir: '{trace_export_path_folder}'")
                 except OSError as err:
                     error = str(err).split(":")[0]
@@ -332,22 +424,22 @@ def export_file(
                     return None
 
         try:
-            with open(Path(filepath, my_filename), "w", encoding=encoding) as file:
+            with Path.open(filepath / my_filename, mode="w", encoding=encoding, newline=newline) as file:
                 file.write(text)
 
             if timestamp != 0:
-                set_modification_timestamp(Path(filepath, my_filename), timestamp)
+                set_modification_timestamp(filepath / my_filename, timestamp)
 
             if ref_text == "":
                 if in_type:
                     Trace.update( f"'{in_type}' created '{trace_export_path}'")
                 else:
                     Trace.update( f"created '{trace_export_path}'")
+
+            elif in_type:
+                Trace.update( f"'{in_type}' changed '{trace_export_path}'")
             else:
-                if in_type:
-                    Trace.update( f"'{in_type}' changed '{trace_export_path}'")
-                else:
-                    Trace.update( f"changed '{trace_export_path}'")
+                Trace.update( f"changed '{trace_export_path}'")
 
             return my_filename
 
@@ -366,7 +458,7 @@ def export_file(
 def _increment_filename(filename_stem: str) -> str:
     pattern = r"^(.*?)(?: \((\d+)\))?$"
 
-    match = re.match(pattern, filename_stem)
+    match: Match[str] | None = re.match(pattern, filename_stem)
     if match:
         base_name, number = match.groups()
         number = int(number) + 1 if number else 1
@@ -382,39 +474,40 @@ def get_filename_unique(dirpath: Path, filename: str) -> str:
 
     number = 1
     append = ""
-    while os.path.isfile(dirpath / (stem + append + suffix)):
+    while Path.is_file(dirpath / (stem + append + suffix)):
         number += 1
         append = "_[" + str(number) + "]"
 
     return stem + append + suffix
 
-def find_matching_file(path_name: str) -> bool | str:
-    s = glob.glob(path_name)
+def find_matching_file(path_name: Path | str) -> bool | str:
+    path = Path(path_name)
+    matches = list(path.glob("*"))
 
-    if len(s) == 0:
+    if len(matches) == 0:
         Trace.error(f"file not found: {path_name}")
         return False
 
-    if len(s) > 1:
-        Trace.error(f"file not unique: {path_name} - {s}")
+    if len(matches) > 1:
+        Trace.error(f"file not unique: {path_name} - {matches}")
         return False
 
-    return s[0].replace("\\", "/")
+    return str(matches[0]).replace("\\", "/")
 
 def find_matching_file_path(dirpath: Path, filename: str) -> None | Path:
-    filepath = str(dirpath / filename)
+    filepath = dirpath / filename
 
-    s = glob.glob( filepath )
+    matches = list(filepath.parent.glob(filepath.name))
 
-    if len(s) == 0:
+    if len(matches) == 0:
         Trace.error(f"file not found: {filepath}")
         return None
 
-    if len(s) > 1:
-        Trace.error(f"file not unique: {filepath} - {s}")
+    if len(matches) > 1:
+        Trace.error(f"file not unique: {filepath} - {matches}")
         return None
 
-    return Path(s[0].replace("\\", "/"))
+    return matches[0]
 
 def get_valid_filename(name: str) -> str:
     s = str(name).strip().replace(" ", "_")
@@ -426,11 +519,11 @@ def get_valid_filename(name: str) -> str:
 def get_file_infos(path: Path | str, filename: str, _in_type: str) -> None | Dict[str, Any]:
     filepath = Path(path, filename)
 
-    if os.path.isfile(filepath):
-        with open(filepath, "rb") as file:
-            md5 = hashlib.md5(file.read()).hexdigest()
+    if filepath.is_file():
+        with Path.open(filepath, mode="rb") as file:
+            md5 = hashlib.md5(file.read()).hexdigest()  # noqa: S324
 
-        size           = os.path.getsize(filepath)
+        size           = filepath.stat().st_size
         timestamp      = get_modification_timestamp(filepath)
         date_timestamp = datetime.datetime.fromtimestamp(timestamp).astimezone().isoformat()
 
@@ -444,19 +537,23 @@ def get_file_infos(path: Path | str, filename: str, _in_type: str) -> None | Dic
             "date":       date_timestamp, # 2024-08-13T09:38:38.935807+02:00  (6 decimal digits)
             "dateDotNet": data_dot_net,   # 2024-08-13T09:38:38.9358065+02:00 (7 decimal digits)
             "bytes":      size,
-            "md5":        md5
+            "md5":        md5,
         }
     else:
         Trace.error( f"not found: {filepath}" )
         return None
 
-def copy_my_file(source: str, dest: str, _show_updated: bool) -> bool:
+def copy_my_file(source: Path | str, dest: Path | str, _show_updated: bool) -> bool:
+
+    source = Path(source)
+    dest   = Path(dest)
+
     new_timestamp = get_modification_timestamp(source)
 
-    if not os.path.exists(dest) or not filecmp.cmp(source, dest):
+    if not dest.exists() or not filecmp.cmp(source, dest):
         try:
             shutil.copyfile(source, dest)
-            set_modification_timestamp(dest, new_timestamp)
+            set_modification_timestamp(dest, timestamp=new_timestamp)
             Trace.info( f"copy {dest}" )
 
         except OSError as err:
@@ -464,4 +561,3 @@ def copy_my_file(source: str, dest: str, _show_updated: bool) -> bool:
             return False
 
     return True
-

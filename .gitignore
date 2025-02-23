@@ -4,14 +4,35 @@ result/*
 data/*
 !data/.gitkeep
 
-*.7z
+wav/*
+!wav/.gitkeep
+
 __history.txt
-.mypy_cache
+_trace*/*
+_old/*
+
+.mypy_cache/*
+.type-check-result/*
+
+.timestamps.json
+.Python31?-*
+
+### General
+.env
+*.7z
+*.zip
+*.rar
+*.tar.gz
 
 ### Python
 
-__pycache__/
-.venv*/
+.venv*/*
+*.pyc
+__pycache__/*
+*.pkl
+dist/*
+build/*
+*/zz_utils.egg-info/*
 
 ### Windows
 

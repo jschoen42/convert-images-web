@@ -1,7 +1,7 @@
 [project]
 name = "convert-images-web"
 version = "0.1.0"
-description = "Add your description here"
+description = "..."
 authors = [
   { name="Jürgen Schoenemeyer", email="js007@web.de" },
 ]
@@ -13,12 +13,18 @@ dependencies = [
     "pillow>=11.0.0",
     "pillow-avif-plugin>=1.4.6",
 ]
-
 [dependency-groups]
 dev = [
-    "mypy>=1.14.1",
+    "mypy>=1.15.0",
     "types-python-dateutil>=2.9.0.20241206",
 ]
 
-[tool.mypy]
-python_version = "3.13"
+[tool.basedpyright]
+deprecateTypingAliases =  false
+reportAny = false
+reportImplicitRelativeImport = false
+reportUnusedCallResult = false
+reportUnknownArgumentType = false
+reportUnknownVariableType = false
+reportUnknownMemberType = false
+reportExplicitAny = false
