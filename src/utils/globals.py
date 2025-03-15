@@ -1,5 +1,5 @@
 """
-    © Jürgen Schoenemeyer, 22.02.2025
+    © Jürgen Schoenemeyer, 14.03.2025 17:59
 
     src/utils/globals.py
 
@@ -12,11 +12,13 @@ from __future__ import annotations
 
 import os
 import sys
+
 from pathlib import Path
 from typing import List
 
-DRIVE: Path     = Path(Path(__file__).drive)
-BASE_PATH: Path = Path(sys.argv[0]).parent.parent
+DRIVE = Path(Path(__file__).drive)
+ROOT = Path(Path(__file__).root)
+BASE_PATH = Path(sys.argv[0]).parent.parent
 
 system_paths = os.getenv("PATH")
 if system_paths is None:

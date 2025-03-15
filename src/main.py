@@ -1,14 +1,21 @@
-# .venv/Scripts/activate
-# python src/main.py
+"""
+    © Jürgen Schoenemeyer, 15.03.2025 21:16
 
+    src/utils/globals.py
+
+    .venv/Scripts/activate
+    python src/main.py
+"""
 from __future__ import annotations
 
 import shutil
 import sys
+
 from pathlib import Path
 from typing import Any
 
 import pillow_avif  # type: ignore[import-untyped] # noqa: F401
+
 from PIL import Image
 
 from utils.decorator import duration
@@ -20,25 +27,26 @@ DATA_PATH = BASE_PATH / "data"
 IMPORT_PATH = DATA_PATH / "import"
 EXPORT_PATH = DATA_PATH / "export"
 
-#
-# convert to 'webp'
-#
-# lossless
-#  - method: 4 -> 5, 6 bringt nicht viel
-#
-# loosy
-#  - method: 5 -> 6 extrem langsam (Dauer 5 x länger)
-#  - quality: 75 bester Kompromiss
-#
-#
-# convert to 'avif' mit plugin
-#
-# lossless
-#  - method: -
-#
-# loosy
-# - method: -
-# - quality: 80 bester Kompromiss
+"""
+    convert to 'webp'
+
+    lossless
+    - method: 4 -> 5, 6 bringt nicht viel
+
+    loosy
+    - method: 5 -> 6 extrem langsam (Dauer 5 x länger)
+    - quality: 75 bester Kompromiss
+
+
+    convert to 'avif' mit plugin
+
+    lossless
+    - method: -
+
+    loosy
+    - method: -
+    - quality: 80 bester Kompromiss
+"""
 
 def has_transparency(img: Any) -> bool:
     if img.info.get("transparency", None) is not None:

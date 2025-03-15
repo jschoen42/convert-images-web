@@ -2,7 +2,7 @@ pwsh: .venv/Scripts/activate
 bash: source .venv/Scripts/activate
 deactivate
 
-python src/main.py
+uv run src/main.py
 
 uv run _pyright.py src
 uv run _mypy.py src

@@ -12,7 +12,7 @@ uv init -p 3.13
 ------------------ pyproject.toml -----------------
 ...
 authors = [
-  { name="Jürgen Schoenemeyer", email="js007@web.de" },
+   { name = "Jürgen Schoenemeyer", email = "js007@web.de" },
 ]
 license = {file = "LICENSE"}
 ...
@@ -76,15 +76,17 @@ uv sync
 
 ------------------- licenses  ---------------------
 
-uv add pip-licenses
+uv add pip-licenses --dev
 pip-licenses > __licenses.txt
 uv remove pip-licenses
 
 ----------------- install Python ------------------
 
 uv python list
+uv python list --all-versions
 
 uv python install 3.11 3.12 3.13
+uv python install pypy-3.11.11
 uv python uninstall 3.9
 
 ------------------- helper: uv --------------------
@@ -104,15 +106,19 @@ uv tree --no-dev > __package_tree.txt
 ----------------- upgrade Python ------------------
 
 uv python list --all-versions
-uv python install 3.13.1
+uv python install 3.13.2
+uv python install pypy-3.11
 
 uv python uninstall 3.13.0
  -> ruff extention fails !!!
 
 ---- for every env
 
-uv venv .venv -p 3.13.1
+uv venv .venv -p 3.13
 uv sync
+
+uv venv .venv -p pypy-3.11.11
+pypy --version
 
 ################### pip - venv ####################
 
@@ -181,10 +187,10 @@ git add --all
 
 git commit -m "..."
 git commit --amend
+git commit --amend --no-edit
 git commit --am -m "..."  # n x = ONE commit
 git rebase -i HEAD~1      # modify/combine message
 
-git commit --amend --no-edit
 git push -u origin main
 
 unstage files:
@@ -194,7 +200,12 @@ git log --oneline origin/main
 git log --graph --oneline --decorate
 
 git log --name-only --pretty=format:"%h (%ch)"
-git log --name-status --pretty=format:"%h [%ai] %D >> '%s'" > __history.txt
+git log --name-status --pretty=format:"%h [%ai] %D >> '%s'" > _history/_history.txt
+
+----- list of all changes of a file
+
+git log --follow -p src/utils/trace.py > _history/trace.version.log
+git log --follow -p src/utils/decorator.py > _history/decorator.version.log
 
 git fetch origin
 git log origin/main
@@ -365,14 +376,16 @@ pyproject.toml:
 ---------------
 [tool.basedpyright]
 deprecateTypingAliases =  false
+enableTypeIgnoreComments = true
 reportAny = false
 reportExplicitAny = false
 reportImplicitRelativeImport = false
 reportMissingTypeStubs = false
-reportUnusedCallResult = false
 reportUnknownArgumentType = false
-reportUnknownVariableType = false
 reportUnknownMemberType = false
+reportUnknownVariableType = false
+reportUnnecessaryTypeIgnoreComment = false
+reportUnusedCallResult = false
 
 python _basedpyright.py src
 uv run _basedpyright.py src

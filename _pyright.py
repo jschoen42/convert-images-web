@@ -1,5 +1,5 @@
 """
-    © Jürgen Schoenemeyer, 23.02.2025
+    © Jürgen Schoenemeyer, 15.03.2025 20:19
 
     _pyright.py
 
@@ -7,13 +7,14 @@
      - npm install --global pyright
      - npm update --global pyright
 
-    INSTALL STUBS - https://github.com/python/typeshed/tree/main/stubs:
+    INSTALL STUBS - https://github.com/python/typeshed/tree/main/stubs
      - uv add lxml-stubs --dev
      - uv add pandas-stubs --dev
      - uv add types-beautifulsoup4 --dev
      - uv add types-openpyxl --dev
      - uv add types-python-dateutil --dev
      - uv add types-pyyaml --dev
+     - uv add types-toml --dev
      - uv add types-xmltodict --dev
 
     RUN CLI
@@ -31,12 +32,12 @@
 from __future__ import annotations
 
 import json
-import locale
 import platform
 import shutil
 import subprocess
 import sys
 import time
+
 from argparse import ArgumentParser
 from collections import Counter
 from datetime import datetime
@@ -58,7 +59,8 @@ def run_pyright(src_path: Path, python_version: str) -> None:
 
     if python_version == "":
         try:
-            with Path.open(Path(".python-version"), mode="r") as f:
+            filename = Path(".python-version")
+            with filename.open(mode="r") as f:
                 python_version = f.read().strip()
         except OSError:
             python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
@@ -99,6 +101,7 @@ def run_pyright(src_path: Path, python_version: str) -> None:
         "reportUnusedCallResult": False,       # always False -> _vars
 
         "exclude": [
+            "**/.venv",
             "**/site-packages",
             "**/Scripts/activate_this.py",
             "**/src/faster_whisper/*",
@@ -127,7 +130,7 @@ def run_pyright(src_path: Path, python_version: str) -> None:
 
     text  = f"Python:   {sys.version.replace(LINEFEET, ' ')}\n"
     text += f"Platform: {platform.platform()}\n"
-    text += f"Date:     {datetime.now().astimezone().strftime('%d.%m.%Y %H:%M:%S')}\n"
+    text += f"Date:     {datetime.now().astimezone():%d.%m.%Y %H:%M:%S}\n"
     text += f"Path:     {BASE_PATH}\n"
     text += "\n"
 
@@ -136,7 +139,7 @@ def run_pyright(src_path: Path, python_version: str) -> None:
         text += f" - {key}: {value}\n"
 
     config = Path("tmp.json")
-    with Path.open(config, mode="w") as config_file:
+    with config.open(mode="w") as config_file:
         json.dump(settings, config_file, indent=2)
 
     try:
@@ -144,21 +147,22 @@ def run_pyright(src_path: Path, python_version: str) -> None:
             [npx_path, "pyright", src_path, "--project", config, "--outputjson"],
             capture_output=True,
             text=True,
-            check=False,
+            check=False, # important
+            encoding="utf-8",
+            errors="replace",
         )
-    except Exception as err:
-        print(f"error: {err} - pyright")
+    except subprocess.CalledProcessError as err:
+        print(f"PyRight error: {err}")
         sys.exit(1)
     finally:
-        Path.unlink(config)
+        config.unlink()
 
     if result.stderr != "":
         print(f"errorcode: {result.returncode}")
         print(result.stderr)
         sys.exit(result.returncode)
 
-    codepage = locale.getpreferredencoding() # cp1252 ...
-    stdout = result.stdout.encode(encoding=codepage).decode(encoding="utf-8").replace("\xa0", " ")
+    stdout = result.stdout.replace("\xa0", " ")
     data = json.loads(stdout)
 
     # {
@@ -212,10 +216,14 @@ def run_pyright(src_path: Path, python_version: str) -> None:
             error_type = diagnostic["rule"]
             error_types[error_type] += 1
 
-        range_start = diagnostic["range"]["start"]
+        if "range" in diagnostic:
+            range_start = diagnostic["range"]["start"]
+            range_text = f"{range_start['line']+1}:{range_start['character']+1}"
+        else:
+            range_text = ""
 
         msg = file[n:]
-        msg += f":{range_start['line']+1}:{range_start['character']+1} - {severity}: " # 0-based
+        msg += f":{range_text} - {severity}: " # 0-based
         msg += diagnostic["message"]
         if error_type != "":
             msg += f" ({error_type})"
@@ -233,8 +241,8 @@ def run_pyright(src_path: Path, python_version: str) -> None:
 
     if len(error_types)>0:
         text += "\nError types (sorted)"
-        for error_type in error_types.most_common():
-            text += f"\n - {error_type[0]}: {error_type[1]}"
+        for error_type, count in error_types.most_common():
+            text += f"\n - {error_type}: {count}"
         text += "\n\n"
 
     text += "\n"
@@ -248,7 +256,7 @@ def run_pyright(src_path: Path, python_version: str) -> None:
     text += footer + "\n"
 
     result_filename = f"PyRight-{python_version}-'{name}'.txt"
-    with Path.open(folder_path / result_filename, mode="w", newline="\n") as f:
+    with (folder_path / result_filename).open(mode="w", newline="\n") as f:
         f.write(text)
 
     duration = time.time() - start

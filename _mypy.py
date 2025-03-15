@@ -1,5 +1,5 @@
 """
-    © Jürgen Schoenemeyer, 23.02.2025
+    © Jürgen Schoenemeyer, 15.03.2025 20:19
 
     _mypy.py
 
@@ -13,6 +13,7 @@
      - uv add types-openpyxl --dev
      - uv add types-python-dateutil --dev
      - uv add types-pyyaml --dev
+     - uv add types-toml --dev
      - uv add types-xmltodict --dev
 
     RUN CLI
@@ -30,13 +31,13 @@
 from __future__ import annotations
 
 import json
-import locale
 import platform
 import re
 import shutil
 import subprocess
 import sys
 import time
+
 from argparse import ArgumentParser
 from collections import Counter
 from datetime import datetime
@@ -76,7 +77,8 @@ def run_mypy(src_path: Path, python_version: str) -> None:
 
     if python_version == "":
         try:
-            with Path.open(Path(".python-version"), mode="r") as f:
+            filename = Path(".python-version")
+            with filename.open(mode="r") as f:
                 python_version = f.read().strip()
         except OSError:
             python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
@@ -228,7 +230,7 @@ def run_mypy(src_path: Path, python_version: str) -> None:
 
     text  = f"Python:   {sys.version.replace(LINEFEET, ' ')}\n"
     text += f"Platform: {platform.platform()}\n"
-    text += f"Date:     {datetime.now().astimezone().strftime('%d.%m.%Y %H:%M:%S')}\n"
+    text += f"Date:     {datetime.now().astimezone():%d.%m.%Y %H:%M:%S}\n"
     text += f"Path:     {BASE_PATH}\n"
     text += "\n"
 
@@ -239,7 +241,7 @@ def run_mypy(src_path: Path, python_version: str) -> None:
     text += "\n"
 
     config = Path("tmp.toml")
-    with Path.open(config, mode="w", newline="\n") as config_file:
+    with config.open(mode="w", newline="\n") as config_file:
         config_file.write(configuration)
 
     try:
@@ -252,24 +254,25 @@ def run_mypy(src_path: Path, python_version: str) -> None:
             [mypy_path, str(src_path), "--config-file", "tmp.toml", "--verbose", "--output=json", *settings],
             capture_output=True,
             text=True,
-            check=False,
+            check=False, # important
+            encoding="utf-8",
+            errors="replace",
         )
-        # result: CompletedProcess[str] = subprocess.run(["mypy", str(src_path), "--config-file", "tmp.toml", "--verbose", "--output=json"] + settings, capture_output=True, text=True, check=False)
-    except Exception as err:
-        print(f"error: {err} - mypy")
+    except subprocess.CalledProcessError as err:
+        print(f"mypy error: {err}")
         sys.exit(1)
     finally:
-        Path.unlink(config)
+        config.unlink()
 
     # analyse stderr ("--verbose")
 
     # LOG:  Mypy Version: 1.14.0
-    # LOG:  Found source: BuildSource(path='src\\__init__.py', module='__main__', has_text=False, base_dir='G:\\Python\\Whisper\\whisper-datev-gitlab\\src', followed=False)
+    # LOG:  Found source: BuildSource(path='src\\__init__.py', module='__main__', has_text=False,
+    #                     base_dir='G:\\Python\\Whisper\\whisper-datev-gitlab\\src', followed=False)
     # ...
     # LOG:  Metadata fresh for __main__: file src\__init__.py
 
-    codepage = locale.getpreferredencoding() # cp1252 ...
-    stderr = result.stderr.encode(encoding=codepage).decode(encoding="utf-8").replace("\xa0", " ")
+    stderr = result.stderr
 
     sources: List[str] = []
     version = ""
@@ -298,7 +301,7 @@ def run_mypy(src_path: Path, python_version: str) -> None:
 
     mypy_missing_stubs = Path(".mypy_cache") / "missing_stubs"
     if mypy_missing_stubs.exists():
-        with Path.open(mypy_missing_stubs, "r") as f:
+        with mypy_missing_stubs.open(mode="r") as f:
             lines = f.read()
 
         text += f"stubs missing -> '{mypy_missing_stubs.as_posix()}'\n"
@@ -336,11 +339,27 @@ def run_mypy(src_path: Path, python_version: str) -> None:
     last_file = ""
     error_types: Counter[str] = Counter()
 
+    fatal_error = False
+    footer = ""
     for line in result.stdout.splitlines():
         if line == "":
             continue
 
-        data = json.loads(line)
+        try:
+            data = json.loads(line)
+        except ValueError:
+            if "Found " in line:
+                fatal_error = True
+                footer = line
+                break
+
+            print(f"### fatal error ### {line}")
+
+            text += line + "\n"
+
+            message_type = "syntax error"
+            error_types[message_type] += 1
+            continue
 
         file = Path(data["file"]).as_posix()
         severity = data["severity"]
@@ -364,8 +383,8 @@ def run_mypy(src_path: Path, python_version: str) -> None:
             last_file = file
             msg_files += 1
 
-        pre = f"{file}:{data["line"]}:{data["column"]+1}" # column 0-based
-        text += f"{pre} {severity}: {data["message"]}"
+        pre = f"{file}:{data['line']}:{data['column']+1}" # column 0-based
+        text += f"{pre} {severity}: {data['message']}"
         if severity != "note":
             text += f" [{message_type}]\n"
         else:
@@ -382,17 +401,18 @@ def run_mypy(src_path: Path, python_version: str) -> None:
             text += f"\n - {error_type[0]}: {error_type[1]}"
         text += "\n\n"
 
-    footer = "Found "
-    footer += f"{format_singular_plural(errors,   'error')}, "
-    footer += f"{format_singular_plural(warnings, 'warning')}, "
-    footer += f"{format_singular_plural(notes,    'note')} in "
-    footer += f"{msg_files} of {format_singular_plural(len(sources), 'file')} "
+    if fatal_error is False:
+        footer = "Found "
+        footer += f"{format_singular_plural(errors,   'error')}, "
+        footer += f"{format_singular_plural(warnings, 'warning')}, "
+        footer += f"{format_singular_plural(notes,    'note')} in "
+        footer += f"{msg_files} of {format_singular_plural(len(sources), 'file')} "
 
     text += "\n" + footer + "\n"
 
     result_filename = f"mypy-{python_version}-'{name}'.txt"
-    with Path.open(folder_path / result_filename, "w", newline="\n") as file:
-        file.write(text)
+    with (folder_path / result_filename).open(mode="w", newline="\n") as f:
+        f.write(text)
 
     duration = time.time() - start
     print(f"[MyPy {version} ({duration:.2f} sec)] {footer} -> {RESULT_FOLDER}/{result_filename}")

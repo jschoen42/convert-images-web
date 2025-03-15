@@ -1,5 +1,5 @@
 """
-    © Jürgen Schoenemeyer, 22.02.2025
+    © Jürgen Schoenemeyer, 15.03.2025 20:19
 
     src/utils/decorator.py
 
@@ -8,9 +8,9 @@
      - @deprecated(message: str="")
      - @retry_exception(text: str="", exception=Exception, delay: int|float=1, retries: int=5)
 
-    PRIVAT:
-      - def get_args_values( func: Callable, *args: Any, **kwargs: Any ) -> Tuple[List, Dict]:
-      - def replace_arguments(match: Match, func_name: str, *args: Any, **kwargs: Any) -> str:
+    PRIVATE:
+     - def get_args_values( func: Callable, *args: Any, **kwargs: Any ) -> Tuple[List, Dict]:
+     - def replace_arguments(match: Match, func_name: str, *args: Any, **kwargs: Any) -> str:
 """
 from __future__ import annotations
 
@@ -19,6 +19,7 @@ import functools
 import inspect
 import re
 import time
+
 from inspect import BoundArguments, Signature
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Match, Tuple
 
@@ -85,8 +86,8 @@ def my_decorator(function=None, *, ... ) -> Callable:
         return decorator           # Decorator Factory
 """
 
-# @duration
-# @duration()
+# @duration    <- there are sometimes (?) problems with the function parameter and mypy, PyRight, Pylance
+# @duration()  <- no problems
 # @duration("")
 # @duration("{__name__} 3: {0} {1} {2}")
 # @duration("{__name__} 2: {name} {number} {type}")
@@ -129,9 +130,9 @@ def duration(special: Callable[[Any], Any] | str | None = None, *, text: str | N
 
             duration_text = f"{Color.GREEN}{Color.BOLD}{total_time:.3f} sec{Color.RESET}"
             if pretext == "":
-                Trace.custom(f"{duration_text}", path="duration")
+                Trace.decorator(f"{duration_text}", path="duration")
             else:
-                Trace.custom(f"{pretext}: {duration_text}", path="duration")
+                Trace.decorator(f"{pretext}: {duration_text}", path="duration")
 
             return result
         return wrapper
@@ -162,9 +163,9 @@ def deprecated(special: Callable[[Any], Any] | str | None = None, *, message: st
             # before ...
 
             if text == "":
-                Trace.custom(f"{Color.RED}'{func.__name__}' is deprecated{Color.RESET}", path="deprecated")
+                Trace.decorator(f"{Color.RED}'{func.__name__}' is deprecated{Color.RESET}", path="deprecated")
             else:
-                Trace.custom(f"{Color.RED}'{func.__name__}' is deprecated ({text}){Color.RESET}", path="deprecated")
+                Trace.decorator(f"{Color.RED}'{func.__name__}' is deprecated ({text}){Color.RESET}", path="deprecated")
 
             result = func(*args, **kwargs)
 
@@ -187,9 +188,9 @@ def deprecated(message: str="") -> Callable:
             # before ...
 
             if message == "":
-                Trace.custom(f"{Color.RED}'{func.__name__}' is deprecated{Color.RESET}", path="deprecated")
+                Trace.decorator(f"{Color.RED}'{func.__name__}' is deprecated{Color.RESET}", path="deprecated")
             else:
-                Trace.custom(f"{Color.RED}'{func.__name__}' is deprecated ({message}){Color.RESET}", path="deprecated")
+                Trace.decorator(f"{Color.RED}'{func.__name__}' is deprecated ({message}){Color.RESET}", path="deprecated")
 
             result = func(*args, **kwargs)
 
@@ -230,9 +231,9 @@ def retry_exception(text: str | None = None, exception: type[BaseException] = Ex
                     attempts += 1
                     attempts_text = f"{Color.RED}{Color.BOLD}failed ({attempts}/{retries}){Color.RESET}"
                     if pretext == "":
-                        Trace.custom(f"{attempts_text}", path="retry")
+                        Trace.decorator(f"{attempts_text}", path="retry")
                     else:
-                        Trace.custom(f"{pretext}: {attempts_text}", path="retry")
+                        Trace.decorator(f"{pretext}: {attempts_text}", path="retry")
 
                     time.sleep(delay)
 
@@ -247,8 +248,8 @@ def get_args_values( func: Callable[[Any], Any], *args: Any, **kwargs: Any ) -> 
     bound_args: BoundArguments = sig.bind_partial(*args, **kwargs)
     bound_args.apply_defaults()
 
-    args_values: Any = []
-    kwargs_values: Any = {}
+    args_values = []
+    kwargs_values = {}
     for name, value in bound_args.arguments.items():
         args_values.append(value)
         kwargs_values[name] = value
@@ -290,7 +291,7 @@ def type_check(*expected_types: type) -> Callable[[Any], Any]:
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             result = func(*args, **kwargs)
 
-            for arg, expected_type in zip(args, expected_types):
+            for arg, expected_type in zip(args, expected_types, strict=False):
                 if not isinstance(arg, expected_type):
                     Trace.error( "TypeError - expected {expected_type}, but got {type}" )
 
@@ -305,7 +306,7 @@ def type_check(*expected_types: type) -> Callable[[Any], Any]:
 # BUT: arg, *kwarg not available
 
 @contextlib.contextmanager
-def duration_cm(name: str) -> Generator[None, None, None]:
+def duration_cm(name: str) -> Generator[None, None, None]:  # noqa: UP043
     start_time = time.perf_counter()
     try:
         yield
@@ -314,4 +315,4 @@ def duration_cm(name: str) -> Generator[None, None, None]:
         total_time = (end_time - start_time)
 
         text = f"{Color.GREEN}{Color.BOLD}{total_time:.3f} sec{Color.RESET}"
-        Trace.custom(f"{name}: {text}", path="duration")
+        Trace.decorator(f"{name}: {text}", path="duration")
