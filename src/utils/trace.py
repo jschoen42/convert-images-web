@@ -1,9 +1,9 @@
 """
-    © Jürgen Schoenemeyer, 12.03.2025 16:31
+    © Jürgen Schoenemeyer, 07.04.2025 20:30
 
     src/utils/trace.py
 
-    class Trace:
+    static class Trace:
       - Trace.set(debug_mode=True)
       - Trace.set(reduced_mode=True)
       - Trace.set(color=False)
@@ -31,7 +31,7 @@
 
       - Trace.redirect(function) # -> e.g. qDebug (PySide6)
 
-    class Color:
+    static class Color:
       - Color.<color_name>
       - Color.clear(text: str) -> str:
 """
@@ -152,7 +152,8 @@ class Trace:
     output: Callable[..., None] | None = None
 
     @classmethod
-    def set(cls, **kwargs: Any) -> None:
+    def set(cls, **kwargs: Any) -> None: # color, reduced_mode, debug_mode, show_timestamp, timezone, show_caller
+
         for key, value in kwargs.items():
             if key in cls.settings:
                 cls.settings[key] = value
@@ -163,14 +164,14 @@ class Trace:
 
                     if importlib.util.find_spec("tzdata") is None:
                         cls.settings["timezone"] = True
-                        Trace.warning( f"please install 'tzdata' for named timezones e.g. '{value}' -> uv add tzdata" )
+                        Trace.warning(f"please install 'tzdata' for named timezones e.g. '{value}' -> uv add tzdata")
 
                     else:
                         try:
                             _ = ZoneInfo(value)
                         except ZoneInfoNotFoundError:
                             cls.settings["timezone"] = True
-                            Trace.error( f"tzdata '{value}' unknown timezone" )
+                            Trace.error(f"tzdata '{value}' unknown timezone")
 
             else:
                 Trace.fatal(f"trace settings: unknown parameter '{key}'")
@@ -256,7 +257,7 @@ class Trace:
                 if platform.system() == "Windows":
                     import msvcrt
 
-                    key = msvcrt.getch()                      # type: ignore[attr-defined] # -> Linux
+                    key = msvcrt.getch()                      # type: ignore[attr-defined, reportAttributeAccessIssue] # -> Linux
                     print()  # noqa: T201
 
                 else: # unix terminal
@@ -265,16 +266,16 @@ class Trace:
                     import tty
 
                     fd: int = sys.stdin.fileno()
-                    old_settings: Any = termios.tcgetattr(fd)  # type: ignore[attr-defined] # -> Windows
+                    old_settings: Any = termios.tcgetattr(fd)  # type: ignore[attr-defined, reportAttributeAccessIssue] # -> Windows
                     try:
-                        tty.setraw(sys.stdin.fileno())         # type: ignore[attr-defined] # -> Windows
+                        tty.setraw(sys.stdin.fileno())         # type: ignore[attr-defined, reportAttributeAccessIssue] # -> Windows
                         key = sys.stdin.buffer.read(1)
                     finally:
-                        termios.tcsetattr(                     # type: ignore[attr-defined] # -> Windows
+                        termios.tcsetattr(                     # type: ignore[attr-defined, reportAttributeAccessIssue] # -> Windows
                             fd,
-                            termios.TCSADRAIN,                 # type: ignore[attr-defined] # -> Windows
+                            termios.TCSADRAIN,                 # type: ignore[attr-defined, reportAttributeAccessIssue] # -> Windows
                             old_settings,
-                        )
+                       )
                         print()  # noqa: T201
 
                 if key == b"\x1b":
@@ -319,8 +320,8 @@ class Trace:
             with file_path.open(mode="w", encoding="utf-8", newline="\n") as file:
                 file.write(text)
 
-        except OSError as err:
-            Trace.error(f"[trace_end] write {err}")
+        except OSError as e:
+            Trace.error(f"write {e}")
 
         cls.messages = []
 

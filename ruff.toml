@@ -55,6 +55,9 @@ ignore = [
     # flake8-use-pathlib
     "PTH208",  # os-listdir
 
+    # flake8-quotes
+    # "Q000",    # bad-quotes-inline-string
+
     # flake8-return
     "RET504",  # unnecessary-assign
     "RET505",  # superfluous-else-return
@@ -83,6 +86,7 @@ ignore = [
 
     # pyupgrade
     "UP006",   # non-pep585-annotation
+    "UP009",   # utf8-encoding-declaration
     "UP035",   # deprecated-import
 ]
 

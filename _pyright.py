@@ -1,5 +1,5 @@
 """
-    © Jürgen Schoenemeyer, 15.03.2025 20:19
+    © Jürgen Schoenemeyer, 31.03.2025 23:52
 
     _pyright.py
 
@@ -23,7 +23,7 @@
      - uv run _pyright.py src/main.py
 
     PUBLIC:
-     - run_pyright(src_path: Path, python_version: str) -> None
+     - check_types(src_path: Path, python_version: str) -> None
 
     PRIVAT:
      - format_singular_plural(value: int, text: str) -> str
@@ -36,13 +36,13 @@ import platform
 import shutil
 import subprocess
 import sys
+import threading
 import time
 
 from argparse import ArgumentParser
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
-from subprocess import CompletedProcess
 from typing import Dict, List
 
 BASE_PATH = Path(sys.argv[0]).parent.parent.resolve()
@@ -50,12 +50,14 @@ RESULT_FOLDER = ".type-check-result"
 
 LINEFEET = "\n"
 
+CONFIG_FILE = "_pyright.tmp.json"
+
 def format_singular_plural(value: int, text: str) -> str:
     if value == 1:
         return f"{value} {text}"
     return f"{value} {text}s"
 
-def run_pyright(src_path: Path, python_version: str) -> None:
+def check_types(src_path: Path, python_version: str) -> None:
 
     if python_version == "":
         try:
@@ -113,15 +115,15 @@ def run_pyright(src_path: Path, python_version: str) -> None:
         print(f"Error: path '{src_path}' not found")
         return
 
-    start = time.time()
+    start = time.perf_counter()
+
+    name = src_path.name
+    if name == "":
+        name = "."
 
     folder_path = BASE_PATH / RESULT_FOLDER
     if not folder_path.exists():
         folder_path.mkdir(parents=True, exist_ok=True)
-
-    name = src_path.stem
-    if name == "":
-        name = "."
 
     npx_path = shutil.which("npx")
     if not npx_path:
@@ -138,12 +140,25 @@ def run_pyright(src_path: Path, python_version: str) -> None:
     for key, value in settings.items():
         text += f" - {key}: {value}\n"
 
-    config = Path("tmp.json")
+    config = Path(CONFIG_FILE)
     with config.open(mode="w") as config_file:
         json.dump(settings, config_file, indent=2)
 
     try:
-        result: CompletedProcess[str] = subprocess.run(
+        def show_scanning(idle_event: threading.Event) -> None:
+            counter = 0
+            while not idle_event.is_set():
+                print(f"PyRight is scanning ... ({counter} sec)", end="\r", flush=True)
+                counter += 1
+                idle_event.wait(1)
+
+        idle_event = threading.Event()
+        idle_thread = threading.Thread(target=show_scanning, args=(idle_event,))
+        idle_thread.start()
+
+        # https://github.com/microsoft/pyright/blob/main/docs/command-line.md
+
+        result = subprocess.run(
             [npx_path, "pyright", src_path, "--project", config, "--outputjson"],
             capture_output=True,
             text=True,
@@ -151,19 +166,32 @@ def run_pyright(src_path: Path, python_version: str) -> None:
             encoding="utf-8",
             errors="replace",
         )
+
     except subprocess.CalledProcessError as err:
         print(f"PyRight error: {err}")
         sys.exit(1)
+
     finally:
+        idle_event.set()
+        idle_thread.join()
         config.unlink()
 
-    if result.stderr != "":
-        print(f"errorcode: {result.returncode}")
-        print(result.stderr)
-        sys.exit(result.returncode)
+    # returncode:
+    #   0: No errors reported
+    #   1: One or more errors reported
+    #   2: Fatal error occurred with no errors or warnings reported
+    #   3: Config file could not be read or parsed
+    #   4: Illegal command-line parameters specified
 
-    stdout = result.stdout.replace("\xa0", " ")
-    data = json.loads(stdout)
+    returncode = result.returncode
+    stdout = result.stdout
+    stderr = result.stderr
+
+    if stderr != "":
+        print(f"returncode: {returncode} - {stderr.strip()}")
+        sys.exit(returncode)
+
+    data = json.loads(stdout.replace("\xa0", " ")) # non breaking space
 
     # {
     #   "version": "1.1.394",
@@ -183,7 +211,7 @@ def run_pyright(src_path: Path, python_version: str) -> None:
     #           "character": 40
     #         }
     #       },
-    #       "rule": "reportAssignmentType"
+    #       "rule": "reportAssignmentType" -> severity: only for file / error / warning, not for information
     #     }
     #   ],
     #   "summary": {
@@ -208,8 +236,8 @@ def run_pyright(src_path: Path, python_version: str) -> None:
     error_types: Counter[str] = Counter()
     for diagnostic in diagnostics:
 
-        file        = Path(diagnostic["file"]).as_posix()
-        severity    = diagnostic["severity"]
+        file = Path(diagnostic["file"]).as_posix()
+        severity = diagnostic["severity"]
         if severity == "information":
             error_type = ""
         else:
@@ -255,13 +283,13 @@ def run_pyright(src_path: Path, python_version: str) -> None:
 
     text += footer + "\n"
 
-    result_filename = f"PyRight-{python_version}-'{name}'.txt"
+    result_filename = f"PyRight-{python_version}-[{name}].txt"
     with (folder_path / result_filename).open(mode="w", newline="\n") as f:
         f.write(text)
 
-    duration = time.time() - start
+    duration = time.perf_counter() - start
     print(f"[PyRight {version} ({duration:.2f} sec)] {footer} -> {RESULT_FOLDER}/{result_filename}")
-    sys.exit(result.returncode)
+    sys.exit(returncode)
 
 if __name__ == "__main__":
     parser = ArgumentParser(description="static type check with PyRight")
@@ -271,7 +299,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     try:
-        run_pyright(Path(args.path), args.version)
+        check_types(Path(args.path), args.version)
     except KeyboardInterrupt:
         print(" --> KeyboardInterrupt")
-        sys.exit(1)
+        sys.exit()
